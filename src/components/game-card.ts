@@ -1,6 +1,13 @@
+import { styles } from '../styles/components';
+
+interface GameCardAttributes {
+  bg?: string;
+  border?: string;
+}
+
 class GameCard extends HTMLElement {
   static get observedAttributes() {
-    return ['width', 'height', 'bg', 'border'];
+    return ['bg', 'border'];
   }
 
   constructor() {
@@ -9,37 +16,37 @@ class GameCard extends HTMLElement {
   }
 
   connectedCallback() {
+    if (!this.shadowRoot) return;
     this.render();
   }
 
   attributeChangedCallback() {
-    this.render();
+    if (!this.shadowRoot) return;
+    this.updateStyles();
   }
 
-  render() {
-    const width = this.getAttribute('width') || '100%';
-    const height = this.getAttribute('height') || '100%';
-    const bg = this.getAttribute('bg') || '#333333';
-    const border = this.getAttribute('border') || '#1a1a1a';
+  private getAttributes(): GameCardAttributes {
+    return {
+      bg: this.getAttribute('bg') || undefined,
+      border: this.getAttribute('border') || undefined,
+    };
+  }
 
+  private updateStyles() {
+    const { bg, border } = this.getAttributes();
+    if (bg) this.style.setProperty('--bg', bg);
+    if (border) this.style.setProperty('--border', border);
+  }
+
+  private render() {
+    if (!this.shadowRoot) return;
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: block;
-          width: ${width};
-          height: ${height};
-          box-sizing: border-box;
-        }
-        .card {
-          width: 100%;
-          height: 100%;
-          background: ${bg};
-          border: 1px solid ${border};
-          box-sizing: border-box;
-        }
+        ${styles.gameCard}
       </style>
       <div class="card"></div>
     `;
+    this.updateStyles();
   }
 }
 

@@ -1,3 +1,6 @@
+import { styles } from '../styles/components';
+import { COLORS } from '../styles/theme';
+
 class GameContainer extends HTMLElement {
   constructor() {
     super();
@@ -5,32 +8,15 @@ class GameContainer extends HTMLElement {
   }
 
   connectedCallback() {
+    if (!this.shadowRoot) return;
+    this.render();
+  }
+
+  private render() {
+    if (!this.shadowRoot) return;
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          height: 100%;
-          background: #232325;
-          margin: 0 auto;
-          box-sizing: border-box;
-          overflow: hidden;
-          aspect-ratio: 393/852;
-        }
-        main {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          flex: 1;
-          box-sizing: border-box;
-        }
-        .cards-container {
-          display: flex;
-          width: 100%;
-          flex: 1;
-          box-sizing: border-box;
-        }
+        ${styles.gameContainer}
       </style>
       <game-header></game-header>
       <main>
@@ -38,21 +24,19 @@ class GameContainer extends HTMLElement {
           class="top-card"
           height="50%"
           width="100%"
-          bg="#333333"
-          border="#1a1a1a">
+          bg="${COLORS.background.secondary}"
+          border="${COLORS.border.primary}">
         </game-card>
         <div class="cards-container">
           <game-card
-            width="50%"
             height="100%"
-            bg="#2a2a2a"
-            border="#151515">
+            bg="${COLORS.background.tertiary}"
+            border="${COLORS.border.secondary}">
           </game-card>
           <game-card
-            width="50%"
             height="100%"
-            bg="#3d3d3d"
-            border="#1f1f1f">
+            bg="${COLORS.background.quaternary}"
+            border="${COLORS.border.tertiary}">
           </game-card>
         </div>
       </main>
