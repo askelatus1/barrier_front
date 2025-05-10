@@ -3,6 +3,7 @@ import './components/game-card';
 import './components/game-container';
 import './components/chat-event';
 import './components/chat-events';
+import './components/faction-panel';
 
 const template = document.createElement('template');
 template.innerHTML = `

@@ -40,24 +40,34 @@ class ChatEvent extends HTMLElement {
     const title = this.getAttribute('title') || '';
     const description = this.getAttribute('description') || '';
     const type = this.getAttribute('type') || '';
-    // const timestamp = this.getAttribute('timestamp') || '';
+    const timestamp = this.getAttribute('timestamp') || '';
 
     const typeClass = this.getTypeStyle(type);
     const styleHref = new URL('./chat-event.css', import.meta.url).toString();
+
+    const formattedDateTime = timestamp ? new Date(timestamp).toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : '';
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <link rel="stylesheet" href="${styleHref}">
       <div class="chatEvent">
-        <img class="avatar" src="https://placehold.co/44x44" alt="avatar" />
+        <div class="avatar-container">
+          <img class="avatar" src="https://placehold.co/44x44" alt="avatar" />
+        </div>
         <div class="content">
           <div class="header">
             <span class="title">${title}</span>
             <span class="label ${typeClass}">${type}</span>
           </div>
           <div class="description">${description}</div>
+          <div class="timestamp">${formattedDateTime}</div>
         </div>
-        <span class="icon">&#128247;</span>
       </div>
     `;
   }

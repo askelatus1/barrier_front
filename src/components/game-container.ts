@@ -19,23 +19,20 @@ class GameContainer extends HTMLElement {
         ${styles.gameContainer}
       </style>
       <game-header></game-header>
-      <main>
+      <main class="game-container-main">
         <game-card 
           class="top-card"
-          height="50%"
-          width="100%"
           bg="${COLORS.background.secondary}"
           border="${COLORS.border.primary}">
         </game-card>
         <div class="cards-container">
           <game-card 
             id="chat"
-            height="100%"
             bg="${COLORS.background.tertiary}"
             border="${COLORS.border.secondary}">
           </game-card>
           <game-card
-            height="100%"
+            id="factions"
             bg="${COLORS.background.quaternary}"
             border="${COLORS.border.tertiary}">
           </game-card>
