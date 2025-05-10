@@ -40,11 +40,16 @@ class GameCard extends HTMLElement {
 
   private render() {
     if (!this.shadowRoot) return;
+    
+    const isChat = this.id === 'chat';
+    
     this.shadowRoot.innerHTML = `
       <style>
         ${styles.gameCard}
       </style>
-      <div class="card"></div>
+      <div class="card">
+        ${isChat ? '<chat-events></chat-events>' : ''}
+      </div>
     `;
     this.updateStyles();
   }

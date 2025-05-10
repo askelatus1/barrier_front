@@ -28,7 +28,8 @@ class GameContainer extends HTMLElement {
           border="${COLORS.border.primary}">
         </game-card>
         <div class="cards-container">
-          <game-card
+          <game-card 
+            id="chat"
             height="100%"
             bg="${COLORS.background.tertiary}"
             border="${COLORS.border.secondary}">
