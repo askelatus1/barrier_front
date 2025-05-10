@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "source": "./index.html",
+  "type": "module",
+  "name": "barrier-game",
+  "description": "A Web Components project for Barrier Game",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "lit": "^3.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "tailwindcss": "3.4.16",
+    "vite": "6.0.4"
+  }
+}
