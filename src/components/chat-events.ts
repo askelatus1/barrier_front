@@ -2,8 +2,9 @@ class ChatEvents extends HTMLElement {
   private demoEvents = [
     {
       id: "1",
-      timestamp: "2024-03-20 14:30:00",
+      timestamp: "2024-03-20 14:30:00", 
       text: "Игрок начал новую игру",
+      description: "Новый игрок присоединился к серверу и начал игровую сессию. Статус активен.",
       isCompleted: true,
       eventType: "START"
     },
@@ -11,13 +12,15 @@ class ChatEvents extends HTMLElement {
       id: "2",
       timestamp: "2024-03-20 14:31:15",
       text: "Получено сообщение от сервера",
+      description: "Сервер прислал обновление о состоянии игры. Обнаружена активность вражеской фракции.",
       isCompleted: true,
       eventType: "EVENT"
     },
     {
-      id: "3",
+      id: "3", 
       timestamp: "2024-03-20 14:32:00",
       text: "Ожидание ответа от сервера...",
+      description: "Отправлен запрос на сервер. Ожидание подтверждения действий игрока.",
       isCompleted: false,
       eventType: "NOTIFY"
     },
@@ -25,6 +28,7 @@ class ChatEvents extends HTMLElement {
       id: "4",
       timestamp: "2024-03-20 14:32:30",
       text: "Игра остановлена",
+      description: "Игровая сессия завершена. Все прогресс сохранен.",
       isCompleted: true,
       eventType: "STOP"
     }
@@ -47,7 +51,7 @@ class ChatEvents extends HTMLElement {
       <chat-event
         timestamp="${event.timestamp}"
         title="${event.text}"
-        description="Пробраться в пещеру где великан держит свой тайник и достать ключ в качестве трофея\nвторая строка ...на всякий случай"
+        description="${event.description}"
         type="${event.eventType}"
       ></chat-event>
     `).join('');

@@ -21,34 +21,6 @@ class FactionPanel extends HTMLElement {
     this.render();
   }
 
-
-  private getIconColor(type: string): string {
-    switch (type) {
-      case 'active':
-        return '#43a047';
-      case 'attack':
-        return '#e53935';
-      case 'defence':
-        return '#1e88e5';
-      case 'war':
-        return '#d32f2f';
-      case 'wreckage':
-        return '#ffa000';
-      case 'peace':
-        return '#43a047';
-      case 'diplomacy':
-        return '#8e24aa';
-      case 'spy':
-        return '#6d4c41';
-      case 'trade':
-        return '#fb8c00';
-      case 'capture':
-        return '#c2185b';
-      default:
-        return '#757575';
-    }
-  }
-
   private render() {
     if (!this.shadowRoot) return;
     const name = this.getAttribute('name') || '';
