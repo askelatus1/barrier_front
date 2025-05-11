@@ -1,4 +1,3 @@
-import { COLORS } from '../styles/theme';
 import { styles } from '../styles/components';
 
 class FactionPanel extends HTMLElement {
