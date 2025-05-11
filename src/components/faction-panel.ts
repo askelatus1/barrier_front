@@ -29,7 +29,6 @@ class FactionPanel extends HTMLElement {
     const name = this.getAttribute('name') || 'Unknown Faction';
     const logo = this.getAttribute('logo') || '/factions/default.svg';
     
-    const isActive = this.hasAttribute('active');
     const hasAttack = this.hasAttribute('attack');
     const hasDefence = this.hasAttribute('defence');
     const hasWar = this.hasAttribute('war');
