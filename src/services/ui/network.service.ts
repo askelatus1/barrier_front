@@ -9,8 +9,8 @@ export interface NetworkNode extends Node {
 export interface NetworkEdge extends Edge {
   from: number;
   to: number;
+  physics?: boolean;
 }
-
 export class NetworkService {
   private static instance: NetworkService;
   private network: Network | null = null;
@@ -32,25 +32,28 @@ export class NetworkService {
   public initialize(container: HTMLElement, options: Options = {}): void {
     const defaultOptions: Options = {
       nodes: {
-        shape: 'circle',
-        size: 20,
+        shape: 'ellipse',
+        size: 50,
         font: {
           size: 14
         }
       },
       edges: {
-        arrows: {
-          to: { enabled: true, scaleFactor: 1 }
-        },
+        // arrows: {
+        //   to: { enabled: true, scaleFactor: 1 }
+        // },
         font: {
           size: 12,
           align: 'middle'
         }
       },
       physics: {
-        stabilization: {
-          iterations: 100
-        }
+        forceAtlas2Based: {
+          springLength: 100
+        },
+        minVelocity: 0.75,
+        solver: 'forceAtlas2Based',
+        timestep: 0.93
       }
     };
 
