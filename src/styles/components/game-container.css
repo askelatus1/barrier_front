@@ -47,6 +47,16 @@ body {
     overflow-y: auto;
 }
 
+::slotted([slot="chat"]),
+::slotted([slot="factions"]) {
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+    margin-bottom: 0;
+    margin-right: 0;
+    overflow-y: auto;
+}
+
 @media (max-width: 600px) {
     .cards-container {
         flex-direction: column;
@@ -56,6 +66,12 @@ body {
     }
 
     .cards-container>game-card {
+        margin-bottom: 0;
+        overflow-y: unset;
+    }
+
+    ::slotted([slot="chat"]),
+    ::slotted([slot="factions"]) {
         margin-bottom: 0;
         overflow-y: unset;
     }

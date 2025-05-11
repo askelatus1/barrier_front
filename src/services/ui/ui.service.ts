@@ -55,7 +55,20 @@ export class UIService {
           bg="${COLORS.background.secondary}"
           border="${COLORS.border.primary}">
         </game-card>
-
+        
+        <game-card
+          slot="chat"
+          id="chat"
+          bg="${COLORS.background.tertiary}"
+          border="${COLORS.border.secondary}">
+        </game-card>
+        
+        <game-card
+          slot="factions"
+          id="factions"
+          bg="${COLORS.background.quaternary}"
+          border="${COLORS.border.tertiary}">
+        </game-card>
     </game-container>`;
     return template;
   }

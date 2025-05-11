@@ -1,4 +1,3 @@
-import { COLORS } from '../styles/theme';
 import gameContainerStyles from '../styles/components/game-container.css?inline';
 
 class GameContainer extends HTMLElement {
@@ -22,16 +21,8 @@ class GameContainer extends HTMLElement {
       <main class="game-container-main">
         <slot name="map"></slot>
         <div class="cards-container">
-          <game-card 
-            id="chat"
-            bg="${COLORS.background.tertiary}"
-            border="${COLORS.border.secondary}">
-          </game-card>
-          <game-card
-            id="factions"
-            bg="${COLORS.background.quaternary}"
-            border="${COLORS.border.tertiary}">
-          </game-card>
+          <slot name="chat"></slot>
+          <slot name="factions"></slot>
         </div>
       </main>
     `;
