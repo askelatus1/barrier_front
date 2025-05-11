@@ -4,6 +4,7 @@ import { ApiService } from './src/services/api/api.service';
 import { UIService } from './src/services/ui/ui.service';
 import { NetworkService } from './src/services/ui/network.service';
 import { demoNodes, demoEdges } from './src/services/ui/network-demo.data';
+import { RegionService } from './src/services/api/region.service';
 
 // Инициализация сервисов
 const configService = ConfigService.getInstance();
@@ -11,13 +12,8 @@ const apiService = new ApiService();
 const uiService = UIService.getInstance();
 const networkService = NetworkService.getInstance();
 
-// Экспортируем сервисы для использования в приложении
-export {
-  configService,
-  apiService,
-  uiService,
-  networkService
-};
+// Инициализируем сервисы
+RegionService.init(apiService);
 
 // Ожидание появления элемента в shadowRoot
 function waitForElementInShadow(shadowRoot: ShadowRoot, selector: string, timeout = 3000): Promise<HTMLElement> {
@@ -75,6 +71,12 @@ async function bootstrap() {
       console.error(e);
     }
     
+    const regions = await RegionService.getInstance().getAllRegions();
+    console.log('Regions:', regions);
+    const networkData = RegionService.convertToNetworkStructure(regions);
+    networkService.setNodes(networkData.nodes);
+    networkService.setEdges(networkData.edges);
+
     console.log('Application bootstrap completed');
   } catch (error) {
     console.error('Application bootstrap failed:', error);
