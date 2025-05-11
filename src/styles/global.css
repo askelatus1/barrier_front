@@ -1,0 +1,58 @@
+/* Global styles */
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+}
+
+:root {
+    /* Базовые переменные */
+    --primary-color: #000;
+    --secondary-color: #fff;
+    --accent-color: #4f46e5;
+    --text-color: #333;
+    --background-color: #f9f9f9;
+    --error-color: #ef4444;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+
+    /* Цвета из COLORS объекта */
+    --color-background-primary: #232325;
+    --color-background-secondary: #333333;
+    --color-background-tertiary: #2a2a2a;
+    --color-background-quaternary: #3d3d3d;
+
+    --color-border-primary: #1a1a1a;
+    --color-border-secondary: #151515;
+    --color-border-tertiary: #1f1f1f;
+
+    --color-text-primary: #ffd988;
+    --color-text-secondary: #d9c48d;
+
+    --color-button-background: #424242;
+
+    /* Размеры из SIZES объекта */
+    --size-header-height: 51px;
+    --size-header-min-height: 51px;
+    --size-header-logo-width: 42px;
+    --size-header-logo-height: 42px;
+    --size-header-help-button-width: 22px;
+    --size-header-help-button-height: 22px;
+    --size-header-help-button-border-radius: 11px;
+    --size-card-min-width: 380px;
+}
+
+.top-card {
+    flex: 1 1 0;
+    min-height: 0;
+}

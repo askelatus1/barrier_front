@@ -1,4 +1,4 @@
-import { styles } from '../styles/components';
+import gameHeaderStyles from '../styles/components/game-header.css?inline';
 
 class GameHeader extends HTMLElement {
   constructor() {
@@ -26,7 +26,7 @@ class GameHeader extends HTMLElement {
     if (!this.shadowRoot) return;
     this.shadowRoot.innerHTML = `
       <style>
-        ${styles.gameHeader}
+        ${gameHeaderStyles}
       </style>
       <img class="logo" alt="Game logo" src="/image-1.png">
       <span class="title">BARRIER GAME</span>

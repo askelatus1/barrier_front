@@ -1,4 +1,5 @@
 import { UIComponent, uiComponents } from '../../config/ui.config';
+import { COLORS } from '../../styles/theme';
 
 export class UIService {
   private static instance: UIService;
@@ -46,7 +47,16 @@ export class UIService {
 
   private createRootTemplate(): HTMLTemplateElement {
     const template = document.createElement('template');
-    template.innerHTML = `<game-container></game-container>`;
+    template.innerHTML = `<game-container>
+        <game-card
+          slot="map"
+          id='app_map' 
+          class="top-card"
+          bg="${COLORS.background.secondary}"
+          border="${COLORS.border.primary}">
+        </game-card>
+
+    </game-container>`;
     return template;
   }
 

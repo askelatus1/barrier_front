@@ -1,3 +1,4 @@
+import './src/styles/global.css';
 import { ConfigService } from './src/services/config/config.service';
 import { ApiService } from './src/services/api/api.service';
 import { UIService } from './src/services/ui/ui.service';
@@ -51,30 +52,18 @@ async function bootstrap() {
     await uiService.initialize();
     
     // Ждем загрузки компонента GameContainer
-    const gameContainer = document.querySelector('game-container');
-    console.log('GameContainer:', gameContainer);
+    const mapContainer = document.querySelector('game-card#app_map');
+    console.log('mapContainer:', mapContainer);
     
-    if (!gameContainer) {
-      throw new Error('GameContainer component not found');
+    if (!mapContainer) {
+      throw new Error('mapContainer component not found');
     }
 
     // Ждем инициализации Shadow DOM
     await new Promise(resolve => setTimeout(resolve, 100));
-    const containerShadow = gameContainer.shadowRoot;
-    if (!containerShadow) throw new Error('No shadowRoot in game-container');
-
-    // Ждем появления game-card#app_map во внутреннем shadowRoot
-    let gameCard;
-    try {
-      gameCard = await waitForElementInShadow(containerShadow, 'game-card#app_map');
-      console.log('GameCard:', gameCard);
-    } catch (e) {
-      console.error('game-card#app_map not found in game-container shadowRoot');
-      throw e;
-    }
     
     // Ждем появления div-контейнера для карты во вложенном shadowRoot
-    const cardShadow = gameCard.shadowRoot;
+    const cardShadow = mapContainer.shadowRoot;
     if (!cardShadow) throw new Error('No shadowRoot in game-card#app_map');
     try {
       const mapContainer = await waitForElementInShadow(cardShadow, '#app_map_canvas');

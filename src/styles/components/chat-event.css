@@ -108,9 +108,3 @@
     margin-top: 4px;
     padding-left: 2px;
 }
-
-chat-events {
-    display: flex;
-    flex-direction: column;
-    /* gap: 16px; */
-}

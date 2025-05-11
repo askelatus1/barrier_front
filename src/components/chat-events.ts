@@ -1,3 +1,5 @@
+import chatEventsStyles from '../styles/components/chat-events.css?inline';
+
 class ChatEvents extends HTMLElement {
   private demoEvents = [
     {
@@ -58,15 +60,7 @@ class ChatEvents extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          padding: 16px;
-          height: 100%;
-          overflow-y: auto;
-          box-sizing: border-box;
-        }
+        ${chatEventsStyles}
       </style>
       ${eventsHtml}
     `;

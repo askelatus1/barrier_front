@@ -1,4 +1,4 @@
-import styles from './chat-event.css?inline';
+import chatEventStyles from '../styles/components/chat-event.css?inline';
 
 class ChatEvent extends HTMLElement {
   static get observedAttributes() {
@@ -43,7 +43,6 @@ class ChatEvent extends HTMLElement {
     const timestamp = this.getAttribute('timestamp') || '';
 
     const typeClass = this.getTypeStyle(type);
-    const styleHref = new URL('./chat-event.css', import.meta.url).toString();
 
     const formattedDateTime = timestamp ? new Date(timestamp).toLocaleString('ru-RU', {
       day: '2-digit',
@@ -54,8 +53,7 @@ class ChatEvent extends HTMLElement {
     }) : '';
 
     this.shadowRoot.innerHTML = `
-      <style>${styles}</style>
-      <link rel="stylesheet" href="${styleHref}">
+      <style>${chatEventStyles}</style>
       <div class="chatEvent">
         <div class="avatar-container">
           <img class="avatar" src="https://placehold.co/44x44" alt="avatar" />

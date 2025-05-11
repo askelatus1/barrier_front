@@ -1,5 +1,5 @@
-import { styles } from '../styles/components';
 import { COLORS } from '../styles/theme';
+import gameContainerStyles from '../styles/components/game-container.css?inline';
 
 class GameContainer extends HTMLElement {
   constructor() {
@@ -16,16 +16,11 @@ class GameContainer extends HTMLElement {
     if (!this.shadowRoot) return;
     this.shadowRoot.innerHTML = `
       <style>
-        ${styles.gameContainer}
+        ${gameContainerStyles}
       </style>
       <game-header></game-header>
       <main class="game-container-main">
-        <game-card
-          id='app_map' 
-          class="top-card"
-          bg="${COLORS.background.secondary}"
-          border="${COLORS.border.primary}">
-        </game-card>
+        <slot name="map"></slot>
         <div class="cards-container">
           <game-card 
             id="chat"

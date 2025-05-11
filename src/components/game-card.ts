@@ -1,4 +1,4 @@
-import { styles } from '../styles/components';
+import gameCardStyles from '../styles/components/game-card.css?inline';
 
 interface GameCardAttributes {
   bg?: string;
@@ -190,7 +190,7 @@ class GameCard extends HTMLElement {
     
     this.shadowRoot.innerHTML = `
       <style>
-        ${styles.gameCard}
+        ${gameCardStyles}
         #app_map_canvas {
           width: 100%;
           height: 100%;
