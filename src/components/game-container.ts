@@ -20,7 +20,8 @@ class GameContainer extends HTMLElement {
       </style>
       <game-header></game-header>
       <main class="game-container-main">
-        <game-card 
+        <game-card
+          id='app_map' 
           class="top-card"
           bg="${COLORS.background.secondary}"
           border="${COLORS.border.primary}">

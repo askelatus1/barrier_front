@@ -11,7 +11,9 @@
   "dependencies": {
     "lit": "^3.1.0",
     "rxjs": "^7.8.2",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "vis-data": "^7.1.9",
+    "vis-network": "^9.1.10"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

@@ -43,6 +43,7 @@ class GameCard extends HTMLElement {
     
     const isChat = this.id === 'chat';
     const isFactions = this.id === 'factions';
+    const isMap = this.id === 'app_map';
     
     const factions = [
       {
@@ -190,6 +191,14 @@ class GameCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         ${styles.gameCard}
+        #app_map_canvas {
+          width: 100%;
+          height: 100%;
+          min-width: 600px;
+          display: block;
+          box-sizing: border-box;
+        }
+        ${isFactions ? '.card{height: auto;}' : ''}
       </style>
       <div class="card">
         ${isChat ? '<chat-events></chat-events>' : ''}
@@ -209,6 +218,7 @@ class GameCard extends HTMLElement {
             ${faction.capture ? 'capture' : ''}
           ></faction-panel>
         `).join('') : ''}
+        ${isMap ? '<div id="app_map_canvas"></div>' : ''}
       </div>
     `;
     this.updateStyles();

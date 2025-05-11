@@ -131,6 +131,8 @@ export const styles = {
       box-sizing: border-box;
     }
     .card {
+      width: 100%;
+      height: 100%;
       background: var(--bg, ${COLORS.background.secondary});
       border: 1px solid var(--border, ${COLORS.border.primary});
       box-sizing: border-box;
