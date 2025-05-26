@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <!-- Фон -->
+    <circle cx="100" cy="100" r="90" fill="#B71C1C"/>
+    
+    <!-- Внешнее кольцо -->
+    <circle cx="100" cy="100" r="85" fill="none" stroke="#D32F2F" stroke-width="3"/>
+    
+    <!-- Символ опасности -->
+    <path d="M100 40
+             L160 140
+             L40 140
+             Z" 
+          fill="none" 
+          stroke="#FFCDD2" 
+          stroke-width="3"/>
+    
+    <!-- Молнии -->
+    <path d="M85 70
+             L100 90
+             L75 110
+             L90 130
+             M115 70
+             L100 90
+             L125 110
+             L110 130" 
+          stroke="#FF8A80" 
+          stroke-width="3"
+          fill="none"/>
+    
+    <!-- Внутренний круг -->
+    <circle cx="100" cy="100" r="30" 
+            fill="none" 
+            stroke="#FF8A80" 
+            stroke-width="2"
+            stroke-dasharray="5,3"/>
+    
+    <!-- Крест -->
+    <path d="M90 85 L110 115 M110 85 L90 115" 
+          stroke="#FFCDD2" 
+          stroke-width="3"/>
+</svg> 

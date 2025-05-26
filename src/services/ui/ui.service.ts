@@ -1,13 +1,33 @@
 import { UIComponent, uiComponents } from '../../config/ui.config';
 import { COLORS } from '../../styles/theme';
+import { DataService } from '../data/data.service';
+import { UiFaction } from '../../models/ui.types';
+import { ActorService } from '../api/actor.service';
 
 export class UIService {
   private static instance: UIService;
   private componentModules = import.meta.glob('/src/components/*.ts', { eager: true });
   private components: UIComponent[] = uiComponents;
+  private uiFactions: UiFaction[] = [];
 
-  private constructor() {
+  private constructor(
+    private readonly dataService: DataService,
+    private readonly actorService: ActorService
+  ) {
     this.validateComponents();
+  }
+
+  public static init(dataService: DataService, actorService: ActorService): void {
+    if (!UIService.instance) {
+      UIService.instance = new UIService(dataService, actorService);
+    }
+  }
+
+  public static getInstance(): UIService {
+    if (!UIService.instance) {
+      throw new Error('UIService не инициализирован. Сначала вызовите init()');
+    }
+    return UIService.instance;
   }
 
   private validateComponents(): void {
@@ -18,13 +38,6 @@ export class UIService {
     if (missingComponents.length > 0) {
       console.warn('Missing components:', missingComponents);
     }
-  }
-
-  public static getInstance(): UIService {
-    if (!UIService.instance) {
-      UIService.instance = new UIService();
-    }
-    return UIService.instance;
   }
 
   private async loadComponent(component: UIComponent): Promise<void> {
@@ -65,7 +78,7 @@ export class UIService {
         
         <game-card
           slot="factions"
-          id="factions"
+          id="app_factions"
           bg="${COLORS.background.quaternary}"
           border="${COLORS.border.tertiary}">
         </game-card>
@@ -89,6 +102,9 @@ export class UIService {
       const template = this.createRootTemplate();
       this.mountToDOM(template);
       
+      // Загружаем фракции
+      await this.loadFactions();
+      
       console.log('UI initialization completed');
     } catch (error) {
       console.error('UI initialization failed:', error);
@@ -100,5 +116,31 @@ export class UIService {
     const component = { name, path };
     this.components.push(component);
     await this.loadComponent(component);
+  }
+
+  private async loadFactions(): Promise<void> {
+    try {
+      const factions = this.dataService.getFactions();
+      this.uiFactions = factions.map(faction => this.actorService.convertToUiFaction(faction));
+      this.updateFactionsUI();
+    } catch (error) {
+      console.error('Failed to load factions:', error);
+      this.uiFactions = [];
+    }
+  }
+
+  private updateFactionsUI(): void {
+    const factionsContainer = document.querySelector('game-card#app_factions');
+    if (factionsContainer) {
+      (factionsContainer as any).factions = this.uiFactions;
+    }
+  }
+
+  public getFactions(): UiFaction[] {
+    return [...this.uiFactions];
+  }
+
+  public async refreshFactions(): Promise<void> {
+    await this.loadFactions();
   }
 } 

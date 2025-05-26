@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <!-- Фон -->
+    <circle cx="100" cy="100" r="90" fill="#E8F5E9"/>
+    
+    <!-- Внешнее кольцо -->
+    <circle cx="100" cy="100" r="85" fill="none" stroke="#81C784" stroke-width="2"/>
+    
+    <!-- Голубь мира -->
+    <path d="M100 50
+             C120 50, 130 70, 140 80
+             L130 90
+             C120 85, 110 85, 100 90
+             C90 85, 80 85, 70 90
+             L60 80
+             C70 70, 80 50, 100 50
+             Z" 
+          fill="#FFFFFF" 
+          stroke="#81C784" 
+          stroke-width="2"/>
+    
+    <!-- Оливковая ветвь -->
+    <path d="M70 110
+             C90 100, 110 100, 130 110
+             C110 120, 90 120, 70 110
+             M80 105
+             L90 95
+             M100 103
+             L110 93
+             M120 105
+             L130 95" 
+          fill="none"
+          stroke="#388E3C" 
+          stroke-width="2"/>
+    
+    <!-- Круг единства -->
+    <circle cx="100" cy="140" r="20" 
+            fill="none" 
+            stroke="#81C784" 
+            stroke-width="2"
+            stroke-dasharray="4,2"/>
+</svg> 
