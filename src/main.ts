@@ -94,7 +94,7 @@ class App {
       this.networkService.setEdges(demoEdges);
 
       // Загрузка реальных данных регионов
-      const regions = await RegionService.getInstance().getAllRegions();
+      const regions = DataService.getInstance().getRegions();
       console.log('Regions:', regions);
       const networkData = RegionService.convertToNetworkStructure(regions);
       this.networkService.setNodes(networkData.nodes);

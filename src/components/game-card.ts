@@ -65,6 +65,15 @@ export class GameCard extends HTMLElement {
     }
   }
 
+  private escapeAttribute(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   private render() {
     if (!this.shadowRoot) return;
     
@@ -90,7 +99,7 @@ export class GameCard extends HTMLElement {
         ${isChat ? '<chat-events></chat-events>' : ''}
         ${isFactions ? this._factions.map(faction => `
           <faction-panel
-            name="${faction.name}"
+            name="${this.escapeAttribute(faction.name)}"
             logo="${this.getFactionLogo(faction)}"
             ${faction.active ? 'active' : ''}
             ${faction.attack ? 'attack' : ''}
