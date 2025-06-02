@@ -1,7 +1,10 @@
 import { Region, RegionsType } from '../../models/region';
 import { ApiService } from './api.service';
 import { NetworkNode, NetworkEdge } from '../ui/network.service';
-import { ActorType } from '../../models/constants';
+import { ActorType, RegionStatus } from '../../models/constants';
+import { TrackService } from './track.service';
+import { ACTION_COLORS, REGION_STATUS_COLORS } from '../../models/track.constants';
+import { EventService } from './event.service';
 
 const FACTION_COLORS = {
   [ActorType.MILITARY]: '#2E7D32',   // Темно-зеленый
@@ -33,10 +36,75 @@ export class RegionService {
   }
 
   /**
-   * Получить цвет для фракции по её типу
+   * Получить цвет для региона с учетом статуса и активных треков
    */
-  private static getFactionColor(type: ActorType | undefined): string {
-    return type ? FACTION_COLORS[type] : FACTION_COLORS.NEUTRAL;
+  private static async getRegionColor(region: Region): Promise<{ 
+    background: string; 
+    border: string;
+    highlight?: { background: string }
+  }> {
+    const trackService = TrackService.getInstance();
+    const activeTracks = trackService.getActiveTracks();
+    
+    // Проверяем, есть ли активные треки для этого региона
+    const activeTrack = activeTracks.find(track => track.territory.id === region.id);
+    
+    if (activeTrack) {
+      try {
+        // Получаем тип действия из события
+        const eventService = EventService.getInstance();
+        const event = await eventService.getEventById(activeTrack.eventId);
+        if (event && event.actionType) {
+          // Если есть активный трек, используем цвет действия события
+          const color = ACTION_COLORS[event.actionType];
+          return {
+            background: color,
+            border: '#000000',
+            highlight: { background: color }
+          };
+        }
+      } catch (error) {
+        console.error('Ошибка при получении события:', error);
+      }
+    }
+
+    // Если нет активных треков или произошла ошибка, используем цвет статуса региона или фракции
+    return {
+      background: region.faction 
+        ? FACTION_COLORS[region.faction.type]
+        : REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
+      border: '#000000'
+    };
+  }
+
+  /**
+   * Получить описание для региона с учетом активных треков
+   */
+  private static async getRegionTitle(region: Region): Promise<string> {
+    const trackService = TrackService.getInstance();
+    const activeTracks = trackService.getActiveTracks();
+    const activeTrack = activeTracks.find(track => track.territory.id === region.id);
+
+    let title = `${region.title}\nСтатус: ${region.status}\nФракция: ${region.faction?.name || 'Нет'}`;
+    
+    if (activeTrack) {
+      try {
+        const eventService = EventService.getInstance();
+        const event = await eventService.getEventById(activeTrack.eventId);
+        const actorsNames = activeTrack.actors.map(actor => actor.name).join(', ');
+        if (event) {
+          title += `\nАктивное действие: ${event.title}\nУчастники: ${actorsNames}`;
+        } else {
+          title += `\nАктивное действие: Неизвестно\nУчастники: ${actorsNames}`;
+        }
+      } catch (error) {
+        console.error('Ошибка при получении события:', error);
+        const actorsNames = activeTrack.actors.map(actor => actor.name).join(', ');
+        title += `\nАктивное действие: Ошибка\nУчастники: ${actorsNames}`;
+      }
+    }
+
+    return title;
   }
 
   /**
@@ -70,33 +138,30 @@ export class RegionService {
 
   /**
    * Преобразует массив регионов в структуру узлов и рёбер для vis-network
-   * @param regions - массив регионов
-   * @returns объект с узлами и рёбрами для vis-network
    */
-  public static convertToNetworkStructure(regions: Region[]): {
+  public static async convertToNetworkStructure(regions: Region[]): Promise<{
     nodes: NetworkNode[];
     edges: NetworkEdge[];
-  } {
-    // Очищаем карту перед новой конвертацией
+  }> {
     this.clearRegionMap();
 
-    const nodes: NetworkNode[] = regions.map((region) => ({
+    const nodes: NetworkNode[] = await Promise.all(regions.map(async (region) => ({
       id: this.getRegionIndex(region.id),
       label: region.title,
-      title: `${region.title}\nСтатус: ${region.status}\nФракция: ${region.faction?.name || 'Нет'}`,
-      color: {
-        background: this.getFactionColor(region.faction?.type),
-        border: '#000000'
-      }
-    }));
+      title: await this.getRegionTitle(region),
+      color: await this.getRegionColor(region)
+    })));
 
     const edges: NetworkEdge[] = [];
+    const trackService = TrackService.getInstance();
+    const activeTracks = trackService.getActiveTracks();
+
     regions.forEach((region) => {
       region.neighbour.forEach((neighbourId) => {
         const fromId = this.getRegionIndex(region.id);
         const toId = this.getRegionIndex(neighbourId);
         
-        // Добавляем ребро только если оно еще не существует
+        // Проверяем, есть ли уже ребро между этими узлами
         const edgeExists = edges.some(
           (edge) => 
             (edge.from === fromId && edge.to === toId) ||
@@ -104,17 +169,36 @@ export class RegionService {
         );
         
         if (!edgeExists) {
-          edges.push({
-            from: fromId,
-            to: toId,
-            arrows: {
-              to: false
-            },
-            color: {
-              color: '#666666',
-              opacity: 0.8
-            }
-          });
+          // Проверяем, есть ли активный трек в этом регионе
+          const track = activeTracks.find(t => t.territory.id === region.id);
+
+          if (track) {
+            // Если есть трек, создаем направленное ребро
+            edges.push({
+              from: fromId,
+              to: toId,
+              arrows: {
+                to: true
+              },
+              color: {
+                color: '#666666',
+                opacity: 0.8
+              }
+            });
+          } else {
+            // Если нет трека, создаем обычное ненаправленное ребро
+            edges.push({
+              from: fromId,
+              to: toId,
+              arrows: {
+                to: false
+              },
+              color: {
+                color: '#666666',
+                opacity: 0.8
+              }
+            });
+          }
         }
       });
     });

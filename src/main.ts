@@ -8,6 +8,7 @@ import { ZoneService } from './services/api/zone.service';
 import { DataService } from './services/data/data.service';
 import { UIService } from './services/ui/ui.service';
 import { NetworkService } from './services/ui/network.service';
+import { TrackService } from './services/api/track.service';
 import { demoNodes, demoEdges } from './services/ui/network-demo.data';
 
 class App {
@@ -32,6 +33,7 @@ class App {
     ActorService.init(this.apiService);
     EventService.init(this.apiService);
     ZoneService.init(this.apiService);
+    TrackService.init(this.apiService);
 
     // Инициализация DataService
     DataService.init(
@@ -88,17 +90,12 @@ class App {
       const mapContainer = await this.waitForElementInShadow(cardShadow, '#app_map_canvas');
       console.log('MapContainer:', mapContainer);
       
-      // Инициализация сети с демо-данными
+      // Инициализация сети
       this.networkService.initialize(mapContainer as HTMLElement);
-      this.networkService.setNodes(demoNodes);
-      this.networkService.setEdges(demoEdges);
 
-      // Загрузка реальных данных регионов
-      const regions = DataService.getInstance().getRegions();
-      console.log('Regions:', regions);
-      const networkData = RegionService.convertToNetworkStructure(regions);
-      this.networkService.setNodes(networkData.nodes);
-      this.networkService.setEdges(networkData.edges);
+      // Загрузка данных треков и обновление отображения
+      await TrackService.getInstance().refreshAllTracks();
+      await this.networkService.updateNetworkDisplay();
     } catch (e) {
       console.error('Failed to initialize network:', e);
     }

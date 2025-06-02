@@ -2,15 +2,6 @@ import { ActorRuleType, EventType, TerritoryRuleType } from "./constants";
 import { Faction } from "./faction";
 import { Region } from "./region";
 
-export interface BarrierEvent {
-    id: string;
-    type: EventType;
-    actionType: ActionType;
-    title: string;
-    actorRule: ActorRuleType[]; // Одно правило для захвата, два для других действий
-    territoryRule: TerritoryRuleType;
-}
-
 export enum ActionType {
     CAPTURE = 'capture',
     PEACE = 'peace',
@@ -21,12 +12,23 @@ export enum ActionType {
     ESPIONAGE = 'espionage'
 }
 
+// Событие из справочника
+export interface BarrierEvent {
+    id: string;
+    type: EventType;
+    actionType: ActionType;
+    title: string;
+    actorRule: ActorRuleType[]; // Одно правило для захвата, два для других действий
+    territoryRule: TerritoryRuleType;
+}
+
+// Активное событие (трек)
 export interface Track {
     id: string;
-    eventId: BarrierEvent["id"];
-    actors: Faction[];
-    territory: Region;
-    timeout: number;
-    status?: 'resolve' | 'reject';
-    scheduler?: NodeJS.Timeout;
+    eventId: string;           // ID события из справочника
+    actors: Faction[];         // Участвующие фракции
+    territory: Region;         // Регион, где происходит событие
+    timeout: number;           // Время на выполнение
+    status?: 'resolve' | 'reject'; // Статус выполнения
+    scheduler?: NodeJS.Timeout;    // Планировщик для таймаута
 }
