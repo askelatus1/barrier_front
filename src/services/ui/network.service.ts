@@ -1,6 +1,8 @@
 import { Network, Options, Node, Edge, NetworkEvents } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { RegionService } from '../api/region.service';
+import { Region } from '../../models/region';
+import { firstValueFrom } from 'rxjs';
 
 export interface NetworkNode extends Node {
   id: number;
@@ -166,14 +168,14 @@ export class NetworkService {
       return;
     }
 
-    const regions = RegionService.getInstance().getRegions();
-    
-    if (!regions.length) {
-      console.warn('No regions available for network display');
-      return;
-    }
-
     try {
+      const regions = await firstValueFrom(RegionService.getInstance().getRegions());
+      
+      if (!regions.length) {
+        console.warn('No regions available for network display');
+        return;
+      }
+
       const { nodes, edges } = await RegionService.convertToNetworkStructure(regions);
       
       if (!nodes.length) {

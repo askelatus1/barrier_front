@@ -8,12 +8,15 @@ import { ZoneService } from './services/api/zone.service';
 import { UIService } from './services/ui/ui.service';
 import { NetworkService } from './services/ui/network.service';
 import { TrackService } from './services/api/track.service';
+import { SSEService } from './services/api/sse.service';
+import { firstValueFrom } from 'rxjs';
 
 class App {
   private static instance: App | null = null;
   private apiService: ApiService;
   private configService = ConfigService.getInstance();
   private networkService = NetworkService.getInstance();
+  private sseService = SSEService.getInstance();
 
   private constructor() {
     this.apiService = new ApiService();
@@ -34,6 +37,7 @@ class App {
       EventService.init(this.apiService);
       ZoneService.init(this.apiService);
       TrackService.init(this.apiService);
+      this.sseService.initialize();
 
       // Инициализация UI с пустыми данными
       UIService.init(
@@ -54,14 +58,14 @@ class App {
       ]);
       console.log('Actors and events loaded');
 
-      // Загрузка регионов в кэш
+      // Загрузка регионов
       await RegionService.getInstance().loadRegions();
-      const regions = RegionService.getInstance().getRegions();
-      
+      const regions = await firstValueFrom(RegionService.getInstance().getRegions());
+      console.log('Regions loaded:', regions.length);
+
       if (!regions.length) {
         throw new Error('No regions loaded');
       }
-      console.log('Regions loaded:', regions.length);
 
       // Преобразование и обновление UI данными
       const uiFactions = actors.map(actor => ActorService.getInstance().convertToUiFaction(actor));
@@ -73,6 +77,7 @@ class App {
       await this.initializeNetwork();
       console.log('Network initialized');
       
+      // Обновляем отображение сети
       await this.networkService.updateNetworkDisplay();
       console.log('Network display updated');
     } catch (error) {
@@ -126,11 +131,11 @@ class App {
     console.log('Shadow root found');
     
     try {
-      const mapContainer = await this.waitForElementInShadow(cardShadow, '#app_map_canvas');
-      console.log('Map canvas container found:', mapContainer);
+      const mapCanvas = await this.waitForElementInShadow(cardShadow, '#app_map_canvas');
+      console.log('Map canvas container found:', mapCanvas);
       
       // Инициализация сети
-      this.networkService.initialize(mapContainer as HTMLElement);
+      this.networkService.initialize(mapCanvas as HTMLElement);
       console.log('Network service initialized');
     } catch (e) {
       console.error('Failed to initialize network:', e);

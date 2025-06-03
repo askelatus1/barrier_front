@@ -4,6 +4,8 @@ import { NetworkService } from '../ui/network.service';
 import { Faction } from '../../models/faction';
 import { Region } from '../../models/region';
 import { ConfigService } from '../config/config.service';
+import { SSEService } from './sse.service';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 
 export enum TrackEventType {
   CREATED = 'track_created',
@@ -11,20 +13,17 @@ export enum TrackEventType {
   STOPPED = 'track_stopped'
 }
 
-export enum SSEEventType {
-  CONNECTION_ESTABLISHED = 'connection_established'
-}
-
 export class TrackService {
   private static instance: TrackService | null = null;
-  private tracks: Map<string, Track> = new Map();
-  private eventSource: EventSource | null = null;
+  private tracks$ = new BehaviorSubject<Map<string, Track>>(new Map());
   private readonly endpoint = '/tracks';
-  private readonly eventsEndpoint = '/api/events/stream';
+  private sseService = SSEService.getInstance();
 
   private constructor(
     private readonly apiService: ApiService
-  ) {}
+  ) {
+    this.initializeEventStream();
+  }
 
   public static init(apiService: ApiService): void {
     if (!TrackService.instance) {
@@ -39,90 +38,70 @@ export class TrackService {
     return TrackService.instance;
   }
 
-  /**
-   * Инициализировать SSE соединение
-   */
-  public initEventSource(): void {
-    if (this.eventSource) {
-      this.eventSource.close();
-    }
-
-    this.eventSource = new EventSource(this.eventsEndpoint);
-    this.setupEventSourceListeners();
+  private initializeEventStream(): void {
+    this.sseService.connect().subscribe({
+      next: (message) => {
+        if (message.type === TrackEventType.CREATED || 
+            message.type === TrackEventType.UPDATED || 
+            message.type === TrackEventType.STOPPED) {
+          // При любом событии просто обновляем все треки
+          this.refreshAllTracks();
+        }
+      },
+      error: (error) => {
+        console.error('Ошибка в потоке треков:', error);
+      }
+    });
   }
 
-  /**
-   * Настройка слушателей SSE
-   */
-  private setupEventSourceListeners(): void {
-    if (!this.eventSource) return;
-
-    // Обрабатываем все события как триггер для обновления треков
-    this.eventSource.addEventListener(TrackEventType.CREATED, () => {
-      this.refreshAllTracks();
-    });
-
-    this.eventSource.addEventListener(TrackEventType.UPDATED, () => {
-      this.refreshAllTracks();
-    });
-
-    this.eventSource.addEventListener(TrackEventType.STOPPED, () => {
-      this.refreshAllTracks();
-    });
-
-    this.eventSource.addEventListener(SSEEventType.CONNECTION_ESTABLISHED, () => {
-      console.log('SSE соединение установлено');
-      // При установке соединения сразу обновляем все треки
-      this.refreshAllTracks();
-    });
-
-    this.eventSource.onerror = (error) => {
-      console.error('Ошибка SSE соединения:', error);
-      // Попытка переподключения через заданное время
-      const config = ConfigService.getInstance().getConfig();
-      setTimeout(() => this.initEventSource(), config.sse.reconnectDelayMs);
-    };
+  public getTracks(): Observable<Map<string, Track>> {
+    return this.tracks$.asObservable();
   }
 
   /**
    * Обновить трек в памяти и обновить отображение
    */
   private async updateTrackInMemory(track: Track): Promise<void> {
-    this.tracks.set(track.id, track);
+    const currentTracks = this.tracks$.getValue();
+    currentTracks.set(track.id, track);
+    this.tracks$.next(new Map(currentTracks));
     await NetworkService.getInstance().updateNetworkDisplay();
   }
 
   /**
    * Получить все активные треки
    */
-  public getAllTracks(): Track[] {
-    return Array.from(this.tracks.values());
+  public async getAllTracks(): Promise<Track[]> {
+    const tracks = await this.apiService.get<Track[]>(this.endpoint);
+    const tracksMap = new Map(tracks.map(track => [track.id, track]));
+    this.tracks$.next(tracksMap);
+    return tracks;
   }
 
   /**
    * Получить трек по ID
    */
-  public getTrackById(trackId: string): Track | undefined {
-    return this.tracks.get(trackId);
+  public async getTrackById(trackId: string): Promise<Track> {
+    return this.apiService.get<Track>(`${this.endpoint}/${trackId}`);
   }
 
   /**
    * Получить треки для конкретного региона
    */
-  public getTracksByRegion(regionId: string): Track[] {
-    return this.getAllTracks().filter(track => track.territory.id === regionId);
+  public getTracksByRegion(regionId: string): Observable<Track[]> {
+    return this.tracks$.pipe(
+      map(tracksMap => Array.from(tracksMap.values())
+        .filter(track => track.territory.id === regionId))
+    );
   }
 
   /**
    * Создать новый трек
    */
-  public async createTrack(eventId: string, actorId: string): Promise<void> {
-    try {
-      await this.apiService.post<{ message: string }>(this.endpoint, { eventId, actorId });
-    } catch (error) {
-      console.error('Ошибка при создании трека:', error);
-      throw error;
-    }
+  public async createTrack(track: Omit<Track, 'id'>): Promise<Track> {
+    const newTrack = await this.apiService.post<Track>(this.endpoint, track);
+    await this.updateTrackInMemory(newTrack);
+    return newTrack;
   }
 
   /**
@@ -131,7 +110,9 @@ export class TrackService {
   public async stopTrack(trackId: string): Promise<void> {
     try {
       await this.apiService.delete<{ message: string }>(`${this.endpoint}/${trackId}`);
-      this.tracks.delete(trackId);
+      const currentTracks = this.tracks$.getValue();
+      currentTracks.delete(trackId);
+      this.tracks$.next(new Map(currentTracks));
       await NetworkService.getInstance().updateNetworkDisplay();
     } catch (error) {
       console.error('Ошибка при остановке трека:', error);
@@ -145,8 +126,8 @@ export class TrackService {
   public async refreshAllTracks(): Promise<void> {
     try {
       const tracks = await this.apiService.get<Track[]>(this.endpoint);
-      this.tracks.clear();
-      tracks.forEach(track => this.updateTrackInMemory(track));
+      const tracksMap = new Map(tracks.map(track => [track.id, track]));
+      this.tracks$.next(tracksMap);
     } catch (error) {
       console.error('Ошибка при обновлении треков:', error);
       throw error;
@@ -156,8 +137,10 @@ export class TrackService {
   /**
    * Получить активные треки
    */
-  public getActiveTracks(): Track[] {
-    return Array.from(this.tracks.values());
+  public getActiveTracks(): Observable<Track[]> {
+    return this.tracks$.pipe(
+      map(tracksMap => Array.from(tracksMap.values()))
+    );
   }
 }
 

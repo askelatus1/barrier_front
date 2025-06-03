@@ -1,13 +1,19 @@
 import { BarrierEvent, Track } from '../../models/events';
 import { ApiService } from './api.service';
+import { SSEService } from './sse.service';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 export class EventService {
   private static instance: EventService | null = null;
   private readonly endpoint = '/events';
+  private events$ = new BehaviorSubject<BarrierEvent[]>([]);
+  private sseService = SSEService.getInstance();
 
   private constructor(
     private readonly apiService: ApiService
-  ) {}
+  ) {
+    this.initializeEventStream();
+  }
 
   public static init(apiService: ApiService): void {
     if (!EventService.instance) {
@@ -22,11 +28,47 @@ export class EventService {
     return EventService.instance;
   }
 
+  private initializeEventStream(): void {
+    this.sseService.connect().subscribe({
+      next: (message) => {
+        if (message.type === 'event_updated' || message.type === 'event_created') {
+          this.handleEventUpdate(message.data);
+        }
+      },
+      error: (error) => {
+        console.error('Ошибка в потоке событий:', error);
+      }
+    });
+  }
+
+  private async handleEventUpdate(eventData: Partial<BarrierEvent>): Promise<void> {
+    const currentEvents = this.events$.getValue();
+    const eventIndex = currentEvents.findIndex(e => e.id === eventData.id);
+
+    if (eventIndex === -1) {
+      // Новое событие
+      const newEvent = await this.getEventById(eventData.id!);
+      this.events$.next([...currentEvents, newEvent]);
+    } else {
+      // Обновление существующего события
+      const updatedEvent = await this.getEventById(eventData.id!);
+      const updatedEvents = [...currentEvents];
+      updatedEvents[eventIndex] = updatedEvent;
+      this.events$.next(updatedEvents);
+    }
+  }
+
+  public getEvents(): Observable<BarrierEvent[]> {
+    return this.events$.asObservable();
+  }
+
   /**
    * Получить все события
    */
   public async getAllEvents(): Promise<BarrierEvent[]> {
-    return this.apiService.get<BarrierEvent[]>(this.endpoint);
+    const events = await this.apiService.get<BarrierEvent[]>(this.endpoint);
+    this.events$.next(events);
+    return events;
   }
 
   /**

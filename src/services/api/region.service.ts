@@ -5,6 +5,8 @@ import { ActorType, RegionStatus } from '../../models/constants';
 import { TrackService } from './track.service';
 import { ACTION_COLORS, REGION_STATUS_COLORS } from '../../models/track.constants';
 import { EventService } from './event.service';
+import { SSEService } from './sse.service';
+import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
 
 const FACTION_COLORS = {
   [ActorType.MILITARY]: '#2E7D32',   // Темно-зеленый
@@ -13,15 +15,25 @@ const FACTION_COLORS = {
   NEUTRAL: '#757575'                 // Серый
 } as const;
 
+export enum RegionEventType {
+  CREATED = 'region_created',
+  UPDATED = 'region_updated',
+  DELETED = 'region_deleted'
+}
+
 export class RegionService {
   private static instance: RegionService | null = null;
+  private regions$ = new BehaviorSubject<Region[]>([]);
   private readonly endpoint = '/regions';
   private regions: Region[] = [];
   private static regionIdMap: Map<RegionsType, number> = new Map();
+  private sseService = SSEService.getInstance();
 
   private constructor(
     private readonly apiService: ApiService
-  ) {}
+  ) {
+    this.initializeEventStream();
+  }
 
   public static init(apiService: ApiService): void {
     if (!RegionService.instance) {
@@ -36,6 +48,44 @@ export class RegionService {
     return RegionService.instance;
   }
 
+  private initializeEventStream(): void {
+    this.sseService.connect().subscribe({
+      next: (message) => {
+        if (message.type === RegionEventType.CREATED || 
+            message.type === RegionEventType.UPDATED || 
+            message.type === RegionEventType.DELETED) {
+          this.handleRegionUpdate(message.data, message.type);
+        }
+      },
+      error: (error) => {
+        console.error('Ошибка в потоке регионов:', error);
+      }
+    });
+  }
+
+  private async handleRegionUpdate(regionData: Partial<Region>, eventType: RegionEventType): Promise<void> {
+    const currentRegions = this.regions$.getValue();
+    const regionId = regionData.id!;
+
+    switch (eventType) {
+      case RegionEventType.DELETED:
+        this.regions$.next(currentRegions.filter(r => r.id !== regionId));
+        break;
+      case RegionEventType.CREATED:
+      case RegionEventType.UPDATED:
+        const updatedRegion = await this.getRegionById(regionId);
+        const index = currentRegions.findIndex(r => r.id === regionId);
+        if (index === -1) {
+          this.regions$.next([...currentRegions, updatedRegion]);
+        } else {
+          const updatedRegions = [...currentRegions];
+          updatedRegions[index] = updatedRegion;
+          this.regions$.next(updatedRegions);
+        }
+        break;
+    }
+  }
+
   /**
    * Получить цвет для региона с учетом статуса и активных треков
    */
@@ -45,7 +95,7 @@ export class RegionService {
     highlight?: { background: string }
   }> {
     const trackService = TrackService.getInstance();
-    const activeTracks = trackService.getActiveTracks();
+    const activeTracks = await firstValueFrom(trackService.getActiveTracks());
     
     // Проверяем, есть ли активные треки для этого региона
     const activeTrack = activeTracks.find(track => track.territory.id === region.id);
@@ -83,7 +133,7 @@ export class RegionService {
    */
   private static async getRegionTitle(region: Region): Promise<string> {
     const trackService = TrackService.getInstance();
-    const activeTracks = trackService.getActiveTracks();
+    const activeTracks = await firstValueFrom(trackService.getActiveTracks());
     const activeTrack = activeTracks.find(track => track.territory.id === region.id);
 
     let title = `${region.title}\nСтатус: ${region.status}\nФракция: ${region.faction?.name || 'Нет'}`;
@@ -155,7 +205,7 @@ export class RegionService {
 
     const edges: NetworkEdge[] = [];
     const trackService = TrackService.getInstance();
-    const activeTracks = trackService.getActiveTracks();
+    const activeTracks = await firstValueFrom(trackService.getActiveTracks());
 
     regions.forEach((region) => {
       region.neighbour.forEach((neighbourId) => {
@@ -168,38 +218,19 @@ export class RegionService {
             (edge.from === fromId && edge.to === toId) ||
             (edge.from === toId && edge.to === fromId)
         );
-        
+
         if (!edgeExists) {
           // Проверяем, есть ли активный трек в этом регионе
-          const track = activeTracks.find(t => t.territory.id === region.id);
+          const hasActiveTrack = activeTracks.some(track => 
+            track.territory.id === region.id || track.territory.id === neighbourId
+          );
 
-          if (track) {
-            // Если есть трек, создаем направленное ребро
-            edges.push({
-              from: fromId,
-              to: toId,
-              arrows: {
-                to: true
-              },
-              color: {
-                color: '#666666',
-                opacity: 0.8
-              }
-            });
-          } else {
-            // Если нет трека, создаем обычное ненаправленное ребро
-            edges.push({
-              from: fromId,
-              to: toId,
-              arrows: {
-                to: false
-              },
-              color: {
-                color: '#666666',
-                opacity: 0.8
-              }
-            });
-          }
+          edges.push({
+            from: fromId,
+            to: toId,
+            arrows: hasActiveTrack ? 'to' : { to: false },
+            color: { color: '#666666' }
+          });
         }
       });
     });
@@ -207,65 +238,28 @@ export class RegionService {
     return { nodes, edges };
   }
 
-  /**
-   * Загрузить все регионы
-   */
+  public getRegions(): Observable<Region[]> {
+    return this.regions$.asObservable();
+  }
+
   public async loadRegions(): Promise<void> {
-    this.regions = await this.getAllRegions();
+    const regions = await this.apiService.get<Region[]>(this.endpoint);
+    this.regions$.next(regions);
   }
 
-  /**
-   * Получить все регионы из кэша
-   */
-  public getRegions(): Region[] {
-    return [...this.regions];
+  public async getRegionById(id: string): Promise<Region> {
+    return this.apiService.get<Region>(`${this.endpoint}/${id}`);
   }
 
-  /**
-   * Получить регион по ID из кэша
-   */
-  public getRegionById(id: string): Region | undefined {
-    return this.regions.find(r => r.id === id);
-  }
-
-  /**
-   * Получить все регионы
-   */
-  public async getAllRegions(): Promise<Region[]> {
-    return this.apiService.get<Region[]>(this.endpoint);
-  }
-
-  /**
-   * Создать новый регион
-   * @param region - данные нового региона
-   */
   public async createRegion(region: Omit<Region, 'id'>): Promise<Region> {
     return this.apiService.post<Region>(this.endpoint, region);
   }
 
-  /**
-   * Обновить существующий регион
-   * @param id - ID региона
-   * @param region - обновленные данные региона
-   */
-  public async updateRegion(id: RegionsType, region: Partial<Region>): Promise<Region> {
+  public async updateRegion(id: string, region: Partial<Region>): Promise<Region> {
     return this.apiService.put<Region>(`${this.endpoint}/${id}`, region);
   }
 
-  /**
-   * Частично обновить существующий регион
-   * @param id - ID региона
-   * @param region - частичные данные для обновления
-   */
-  public async patchRegion(id: RegionsType, region: Partial<Region>): Promise<Region> {
-    return this.apiService.patch<Region>(`${this.endpoint}/${id}`, region);
-  }
-
-  /**
-   * Удалить регион
-   * @param id - ID региона
-   */
-  public async deleteRegion(id: RegionsType): Promise<void> {
+  public async deleteRegion(id: string): Promise<void> {
     return this.apiService.delete<void>(`${this.endpoint}/${id}`);
   }
 } 
