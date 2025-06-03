@@ -1,3 +1,5 @@
+import { ApiService } from './api.service';
+
 interface ChatEventMessage {
   title: string;
   description: string;
@@ -5,19 +7,27 @@ interface ChatEventMessage {
   timestamp: string;
 }
 
-class ChatEventService {
-  private static instance: ChatEventService;
+export class ChatEventService {
+  private static instance: ChatEventService | null = null;
   private messages: ChatEventMessage[] = [];
   private readonly MAX_MESSAGES = 20;
   private chatContainer: HTMLElement | null = null;
 
-  private constructor() {
+  private constructor(
+    private readonly apiService: ApiService
+  ) {
     this.chatContainer = document.querySelector('chat-events');
+  }
+
+  public static init(apiService: ApiService): void {
+    if (!ChatEventService.instance) {
+      ChatEventService.instance = new ChatEventService(apiService);
+    }
   }
 
   public static getInstance(): ChatEventService {
     if (!ChatEventService.instance) {
-      ChatEventService.instance = new ChatEventService();
+      throw new Error('ChatEventService не инициализирован. Сначала вызовите init()');
     }
     return ChatEventService.instance;
   }
@@ -52,6 +62,4 @@ class ChatEventService {
       this.chatContainer?.appendChild(chatEvent);
     });
   }
-}
-
-export const chatEventService = ChatEventService.getInstance(); 
+} 

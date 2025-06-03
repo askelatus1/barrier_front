@@ -1,23 +1,18 @@
+import { ApiService } from './api.service';
 import { Faction, FactionId } from '../../models/faction';
 import { UiFaction } from '../../models/ui.types';
-import { ApiService } from './api.service';
 import { ActorType } from '../../models/constants';
 
 export class ActorService {
   private static instance: ActorService | null = null;
-  private readonly endpoint = '/actors';
+  private actors: Map<string, Faction> = new Map();
   private factions: Faction[] = [];
-  private readonly factionLogos: Record<string, string> = {
-    'Галактическая Империя': '/factions/empire.svg',
-    'Альянс Свободных Планет': '/factions/alliance.svg',
-    'Конфедерация Независимых Систем': '/factions/cis.svg',
-    'Мандалорский Клан': '/factions/mandalore.svg',
-    'Торговая Федерация': '/factions/trade-federation.svg',
-    'Орден Джедаев': '/factions/jedi.svg',
-    'Ситхи': '/factions/sith.svg',
-    'Хаттский Картель': '/factions/hutt.svg',
-    'Клан Вуки': '/factions/wookie.svg',
-    'Гильдия Наемников': '/factions/bounty-hunters.svg'
+  private readonly endpoint = '/actors';
+
+  private readonly factionLogos: Record<ActorType, string> = {
+    [ActorType.MILITARY]: '/factions/military.svg',
+    [ActorType.CIVILIAN]: '/factions/civilian.svg',
+    [ActorType.TERRORIST]: '/factions/terrorist.svg'
   };
 
   private constructor(
@@ -37,18 +32,27 @@ export class ActorService {
     return ActorService.instance;
   }
 
-  /**
-   * Получить всех акторов
-   */
   public async getAllActors(): Promise<Faction[]> {
-    return this.apiService.get<Faction[]>(this.endpoint);
+    try {
+      const actors = await this.apiService.get<Faction[]>('/actors');
+      this.actors.clear();
+      actors.forEach(actor => this.actors.set(actor.id, actor));
+      return actors;
+    } catch (error) {
+      console.error('Ошибка при получении акторов:', error);
+      throw error;
+    }
   }
 
-  /**
-   * Получить актора по ID
-   */
-  public async getActorById(id: FactionId): Promise<Faction> {
-    return this.apiService.get<Faction>(`${this.endpoint}/${id}`);
+  public async getActorById(id: string): Promise<Faction> {
+    try {
+      const actor = await this.apiService.get<Faction>(`/actors/${id}`);
+      this.actors.set(actor.id, actor);
+      return actor;
+    } catch (error) {
+      console.error(`Ошибка при получении актора ${id}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -85,20 +89,18 @@ export class ActorService {
   public convertToUiFaction(faction: Faction): UiFaction {
     return {
       name: faction.name,
-      logo: this.factionLogos[faction.name] || '/factions/default.svg',
       type: faction.type,
-      // Генерируем случайные значения для демонстрации
-      // В реальном приложении эти значения должны приходить с бекенда
-      active: Math.random() > 0.5,
-      attack: Math.random() > 0.7,
-      defence: Math.random() > 0.7,
-      war: Math.random() > 0.8,
-      wreckage: Math.random() > 0.9,
-      peace: Math.random() > 0.7,
-      diplomacy: Math.random() > 0.7,
-      spy: Math.random() > 0.8,
-      trade: Math.random() > 0.7,
-      capture: Math.random() > 0.9
+      logo: this.factionLogos[faction.type] || '/factions/default.svg',
+      active: false,
+      attack: false,
+      defence: false,
+      war: false,
+      wreckage: false,
+      peace: false,
+      diplomacy: false,
+      spy: false,
+      trade: false,
+      capture: false
     };
   }
 
@@ -114,7 +116,7 @@ export class ActorService {
    * Получить UI-представление фракции по ID
    */
   public async getUiFactionById(id: FactionId): Promise<UiFaction> {
-    const faction = await this.getActorById(id);
+    const faction = await this.getActorById(id.toString());
     return this.convertToUiFaction(faction);
   }
 
@@ -136,6 +138,6 @@ export class ActorService {
    * Получить фракцию по ID из кэша
    */
   public getFactionById(id: string): Faction | undefined {
-    return this.factions.find(f => f.id === id);
+    return this.actors.get(id);
   }
 } 

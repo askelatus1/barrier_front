@@ -5,19 +5,19 @@ import { ActorService } from './services/api/actor.service';
 import { RegionService } from './services/api/region.service';
 import { EventService } from './services/api/event.service';
 import { ZoneService } from './services/api/zone.service';
-import { DataService } from './services/data/data.service';
 import { UIService } from './services/ui/ui.service';
 import { NetworkService } from './services/ui/network.service';
 import { TrackService } from './services/api/track.service';
-import { demoNodes, demoEdges } from './services/ui/network-demo.data';
 
 class App {
   private static instance: App | null = null;
-  private apiService: ApiService | null = null;
+  private apiService: ApiService;
   private configService = ConfigService.getInstance();
   private networkService = NetworkService.getInstance();
 
-  private constructor() {}
+  private constructor() {
+    this.apiService = new ApiService();
+  }
 
   public static getInstance(): App {
     if (!App.instance) {
@@ -28,27 +28,31 @@ class App {
 
   private async initializeServices(): Promise<void> {
     // Инициализация API сервисов
-    this.apiService = new ApiService();
     RegionService.init(this.apiService);
     ActorService.init(this.apiService);
     EventService.init(this.apiService);
     ZoneService.init(this.apiService);
     TrackService.init(this.apiService);
 
-    // Инициализация DataService
-    DataService.init(
+    // Инициализация UI с пустыми данными
+    UIService.init(
       ActorService.getInstance(),
-      RegionService.getInstance()
+      RegionService.getInstance(),
+      EventService.getInstance()
     );
+
+    // Инициализация UI компонентов
+    await UIService.getInstance().initialize();
 
     // Загрузка данных
-    await DataService.getInstance().loadAllData();
+    await Promise.all([
+      ActorService.getInstance().getAllActors(),
+      RegionService.getInstance().getAllRegions(),
+      EventService.getInstance().getAllEvents()
+    ]);
 
-    // Инициализация UI
-    UIService.init(
-      DataService.getInstance(),
-      ActorService.getInstance()
-    );
+    // Загрузка данных в UI
+    await UIService.getInstance().loadInitialData();
   }
 
   private async waitForElementInShadow(shadowRoot: ShadowRoot, selector: string, timeout = 3000): Promise<HTMLElement> {
@@ -106,11 +110,8 @@ class App {
       console.log('Initializing application...');
       console.log('Current config:', this.configService.getConfig());
       
-      // Инициализация сервисов
+      // Инициализация сервисов и UI
       await this.initializeServices();
-      
-      // Инициализация UI компонентов
-      await UIService.getInstance().initialize();
       
       // Инициализация фракций
       const factionsContainer = document.querySelector('game-card#app_factions');

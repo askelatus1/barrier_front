@@ -1,8 +1,9 @@
 import { UIComponent, uiComponents } from '../../config/ui.config';
 import { COLORS } from '../../styles/theme';
-import { DataService } from '../data/data.service';
 import { UiFaction } from '../../models/ui.types';
 import { ActorService } from '../api/actor.service';
+import { RegionService } from '../api/region.service';
+import { EventService } from '../api/event.service';
 
 export class UIService {
   private static instance: UIService;
@@ -11,15 +12,20 @@ export class UIService {
   private uiFactions: UiFaction[] = [];
 
   private constructor(
-    private readonly dataService: DataService,
-    private readonly actorService: ActorService
+    private readonly actorService: ActorService,
+    private readonly regionService: RegionService,
+    private readonly eventService: EventService
   ) {
     this.validateComponents();
   }
 
-  public static init(dataService: DataService, actorService: ActorService): void {
+  public static init(
+    actorService: ActorService,
+    regionService: RegionService,
+    eventService: EventService
+  ): void {
     if (!UIService.instance) {
-      UIService.instance = new UIService(dataService, actorService);
+      UIService.instance = new UIService(actorService, regionService, eventService);
     }
   }
 
@@ -102,12 +108,24 @@ export class UIService {
       const template = this.createRootTemplate();
       this.mountToDOM(template);
       
-      // Загружаем фракции
-      await this.loadFactions();
+      // Инициализируем UI с пустыми данными
+      this.uiFactions = [];
+      this.updateFactionsUI();
       
       console.log('UI initialization completed');
     } catch (error) {
       console.error('UI initialization failed:', error);
+      throw error;
+    }
+  }
+
+  public async loadInitialData(): Promise<void> {
+    try {
+      console.log('Loading initial data...');
+      await this.loadFactions();
+      console.log('Initial data loaded');
+    } catch (error) {
+      console.error('Failed to load initial data:', error);
       throw error;
     }
   }
@@ -120,7 +138,7 @@ export class UIService {
 
   private async loadFactions(): Promise<void> {
     try {
-      const factions = this.dataService.getFactions();
+      const factions = await this.actorService.getAllActors();
       this.uiFactions = factions.map(faction => this.actorService.convertToUiFaction(faction));
       this.updateFactionsUI();
     } catch (error) {
@@ -142,5 +160,13 @@ export class UIService {
 
   public async refreshFactions(): Promise<void> {
     await this.loadFactions();
+  }
+
+  public async refreshUI(): Promise<void> {
+    // Обновляем фракции
+    await this.loadFactions();
+    
+    // Здесь можно добавить обновление других UI компонентов по мере необходимости
+    console.log('UI refreshed with new data');
   }
 } 
