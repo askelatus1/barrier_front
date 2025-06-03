@@ -1,7 +1,6 @@
 import { Network, Options, Node, Edge, NetworkEvents } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { RegionService } from '../api/region.service';
-import { DataService } from '../data/data.service';
 
 export interface NetworkNode extends Node {
   id: number;
@@ -145,8 +144,7 @@ export class NetworkService {
   public async updateNetworkDisplay(): Promise<void> {
     if (!this.network || !this.nodes || !this.edges) return;
 
-    const dataService = DataService.getInstance();
-    const regions = dataService.getRegions();
+    const regions = RegionService.getInstance().getRegions();
     
     if (!regions.length) return;
 

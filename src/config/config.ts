@@ -4,8 +4,13 @@ export interface ApiConfig {
   timeout: number;
 }
 
+export interface SSEConfig {
+  reconnectDelayMs: number;
+}
+
 export interface AppConfig {
   api: ApiConfig;
+  sse: SSEConfig;
   env: string;
   debug: boolean;
 }
@@ -19,6 +24,9 @@ const defaultConfig: AppConfig = {
       'Accept': 'application/json'
     },
     timeout: 30000
+  },
+  sse: {
+    reconnectDelayMs: 5000
   },
   env: 'development',
   debug: false

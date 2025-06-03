@@ -6,6 +6,7 @@ import { ActorType } from '../../models/constants';
 export class ActorService {
   private static instance: ActorService | null = null;
   private readonly endpoint = '/actors';
+  private factions: Faction[] = [];
   private readonly factionLogos: Record<string, string> = {
     'Галактическая Империя': '/factions/empire.svg',
     'Альянс Свободных Планет': '/factions/alliance.svg',
@@ -115,5 +116,26 @@ export class ActorService {
   public async getUiFactionById(id: FactionId): Promise<UiFaction> {
     const faction = await this.getActorById(id);
     return this.convertToUiFaction(faction);
+  }
+
+  /**
+   * Загрузить все фракции
+   */
+  public async loadFactions(): Promise<void> {
+    this.factions = await this.getAllActors();
+  }
+
+  /**
+   * Получить все фракции из кэша
+   */
+  public getFactions(): Faction[] {
+    return [...this.factions];
+  }
+
+  /**
+   * Получить фракцию по ID из кэша
+   */
+  public getFactionById(id: string): Faction | undefined {
+    return this.factions.find(f => f.id === id);
   }
 } 

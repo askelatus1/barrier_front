@@ -16,6 +16,7 @@ const FACTION_COLORS = {
 export class RegionService {
   private static instance: RegionService | null = null;
   private readonly endpoint = '/regions';
+  private regions: Region[] = [];
   private static regionIdMap: Map<RegionsType, number> = new Map();
 
   private constructor(
@@ -207,18 +208,31 @@ export class RegionService {
   }
 
   /**
+   * Загрузить все регионы
+   */
+  public async loadRegions(): Promise<void> {
+    this.regions = await this.getAllRegions();
+  }
+
+  /**
+   * Получить все регионы из кэша
+   */
+  public getRegions(): Region[] {
+    return [...this.regions];
+  }
+
+  /**
+   * Получить регион по ID из кэша
+   */
+  public getRegionById(id: string): Region | undefined {
+    return this.regions.find(r => r.id === id);
+  }
+
+  /**
    * Получить все регионы
    */
   public async getAllRegions(): Promise<Region[]> {
     return this.apiService.get<Region[]>(this.endpoint);
-  }
-
-  /**
-   * Получить регион по ID
-   * @param id - ID региона
-   */
-  public async getRegionById(id: RegionsType): Promise<Region> {
-    return this.apiService.get<Region>(`${this.endpoint}/${id}`);
   }
 
   /**

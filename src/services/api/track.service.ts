@@ -1,13 +1,26 @@
 import { Track } from '../../models/events';
-import { Socket } from 'socket.io-client';
 import { ApiService } from './api.service';
 import { NetworkService } from '../ui/network.service';
+import { Faction } from '../../models/faction';
+import { Region } from '../../models/region';
+import { ConfigService } from '../config/config.service';
+
+export enum TrackEventType {
+  CREATED = 'track_created',
+  UPDATED = 'track_updated',
+  STOPPED = 'track_stopped'
+}
+
+export enum SSEEventType {
+  CONNECTION_ESTABLISHED = 'connection_established'
+}
 
 export class TrackService {
   private static instance: TrackService | null = null;
   private tracks: Map<string, Track> = new Map();
-  private socket: Socket | null = null;
+  private eventSource: EventSource | null = null;
   private readonly endpoint = '/tracks';
+  private readonly eventsEndpoint = '/api/events/stream';
 
   private constructor(
     private readonly apiService: ApiService
@@ -27,27 +40,48 @@ export class TrackService {
   }
 
   /**
-   * Установить сокет для прослушивания событий
+   * Инициализировать SSE соединение
    */
-  public setSocket(socket: Socket): void {
-    this.socket = socket;
-    this.setupSocketListeners();
+  public initEventSource(): void {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+
+    this.eventSource = new EventSource(this.eventsEndpoint);
+    this.setupEventSourceListeners();
   }
 
   /**
-   * Настройка слушателей сокета
+   * Настройка слушателей SSE
    */
-  private setupSocketListeners(): void {
-    if (!this.socket) return;
+  private setupEventSourceListeners(): void {
+    if (!this.eventSource) return;
 
-    this.socket.on('track:update', (track: Track) => {
-      this.updateTrackInMemory(track);
+    // Обрабатываем все события как триггер для обновления треков
+    this.eventSource.addEventListener(TrackEventType.CREATED, () => {
+      this.refreshAllTracks();
     });
 
-    this.socket.on('track:stop', async (trackId: string) => {
-      this.tracks.delete(trackId);
-      await NetworkService.getInstance().updateNetworkDisplay();
+    this.eventSource.addEventListener(TrackEventType.UPDATED, () => {
+      this.refreshAllTracks();
     });
+
+    this.eventSource.addEventListener(TrackEventType.STOPPED, () => {
+      this.refreshAllTracks();
+    });
+
+    this.eventSource.addEventListener(SSEEventType.CONNECTION_ESTABLISHED, () => {
+      console.log('SSE соединение установлено');
+      // При установке соединения сразу обновляем все треки
+      this.refreshAllTracks();
+    });
+
+    this.eventSource.onerror = (error) => {
+      console.error('Ошибка SSE соединения:', error);
+      // Попытка переподключения через заданное время
+      const config = ConfigService.getInstance().getConfig();
+      setTimeout(() => this.initEventSource(), config.sse.reconnectDelayMs);
+    };
   }
 
   /**
@@ -63,13 +97,6 @@ export class TrackService {
    */
   public getAllTracks(): Track[] {
     return Array.from(this.tracks.values());
-  }
-
-  /**
-   * Получить активные треки (без статуса)
-   */
-  public getActiveTracks(): Track[] {
-    return this.getAllTracks().filter(track => !track.status);
   }
 
   /**
@@ -125,4 +152,32 @@ export class TrackService {
       throw error;
     }
   }
-} 
+
+  /**
+   * Получить активные треки
+   */
+  public getActiveTracks(): Track[] {
+    return Array.from(this.tracks.values());
+  }
+}
+
+export interface EnrichedFaction extends Faction {
+  status: FactionStatus;
+  events: Track[];
+}
+
+export interface EnrichedRegion extends Region {
+  activeTracks: Track[];
+}
+
+export interface FactionStatus {
+  attack: boolean;
+  defence: boolean;
+  war: boolean;
+  wreckage: boolean;
+  peace: boolean;
+  diplomacy: boolean;
+  spy: boolean;
+  trade: boolean;
+  capture: boolean;
+}
