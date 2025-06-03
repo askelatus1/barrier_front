@@ -29,6 +29,17 @@ export class NetworkService {
   }
 
   public initialize(container: HTMLElement): void {
+    if (!container) {
+      throw new Error('Container element is required for network initialization');
+    }
+
+    // Очищаем старые данные если они есть
+    if (this.network) {
+      this.clear();
+      this.network.destroy();
+      this.network = null;
+    }
+
     // Create DataSets
     this.nodes = new DataSet<NetworkNode>();
     this.edges = new DataSet<NetworkEdge>();
@@ -62,11 +73,17 @@ export class NetworkService {
       }
     };
 
-    this.network = new Network(
-      container,
-      { nodes: this.nodes, edges: this.edges },
-      options
-    );
+    try {
+      this.network = new Network(
+        container,
+        { nodes: this.nodes, edges: this.edges },
+        options
+      );
+      console.log('Network initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize network:', error);
+      throw error;
+    }
   }
 
   public setNodes(nodes: NetworkNode[]): void {
@@ -112,10 +129,12 @@ export class NetworkService {
   }
 
   public clear(): void {
-    if (!this.nodes) return;
-    this.nodes.clear();
-    if (!this.edges) return;
-    this.edges.clear();
+    if (this.nodes) {
+      this.nodes.clear();
+    }
+    if (this.edges) {
+      this.edges.clear();
+    }
   }
 
   public getNodes(): NetworkNode[] {
@@ -142,30 +161,38 @@ export class NetworkService {
    * Обновить отображение карты с учетом текущего состояния регионов и треков
    */
   public async updateNetworkDisplay(): Promise<void> {
-    if (!this.network || !this.nodes || !this.edges) return;
+    if (!this.network || !this.nodes || !this.edges) {
+      console.error('Network not initialized');
+      return;
+    }
 
     const regions = RegionService.getInstance().getRegions();
     
-    if (!regions.length) return;
+    if (!regions.length) {
+      console.warn('No regions available for network display');
+      return;
+    }
 
-    const { nodes, edges } = await RegionService.convertToNetworkStructure(regions);
-    
-    // Обновляем только данные узлов, сохраняя текущую позицию
-    nodes.forEach(node => {
-      const currentNode = this.nodes?.get(node.id);
-      if (currentNode) {
-        const position = this.network?.getPosition(node.id);
-        this.nodes?.update({
-          ...node,
-          x: position?.x,
-          y: position?.y
-        });
-      } else {
-        this.nodes?.add(node);
+    try {
+      const { nodes, edges } = await RegionService.convertToNetworkStructure(regions);
+      
+      if (!nodes.length) {
+        console.warn('No nodes generated for network display');
+        return;
       }
-    });
 
-    // Обновляем рёбра
-    this.setEdges(edges);
+      // Очищаем старые данные
+      this.clear();
+
+      // Добавляем новые узлы
+      this.nodes.add(nodes);
+
+      // Добавляем новые рёбра
+      this.edges.add(edges);
+
+      console.log('Network display updated successfully');
+    } catch (error) {
+      console.error('Failed to update network display:', error);
+    }
   }
 } 

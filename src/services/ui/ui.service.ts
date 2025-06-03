@@ -4,12 +4,14 @@ import { UiFaction } from '../../models/ui.types';
 import { ActorService } from '../api/actor.service';
 import { RegionService } from '../api/region.service';
 import { EventService } from '../api/event.service';
+import { Region } from '../../models/region';
 
 export class UIService {
   private static instance: UIService;
   private componentModules = import.meta.glob('/src/components/*.ts', { eager: true });
   private components: UIComponent[] = uiComponents;
   private uiFactions: UiFaction[] = [];
+  private regions: Region[] = [];
 
   private constructor(
     private readonly actorService: ActorService,
@@ -110,22 +112,13 @@ export class UIService {
       
       // Инициализируем UI с пустыми данными
       this.uiFactions = [];
+      this.regions = [];
       this.updateFactionsUI();
+      this.updateRegionsUI();
       
       console.log('UI initialization completed');
     } catch (error) {
       console.error('UI initialization failed:', error);
-      throw error;
-    }
-  }
-
-  public async loadInitialData(): Promise<void> {
-    try {
-      console.log('Loading initial data...');
-      await this.loadFactions();
-      console.log('Initial data loaded');
-    } catch (error) {
-      console.error('Failed to load initial data:', error);
       throw error;
     }
   }
@@ -136,15 +129,10 @@ export class UIService {
     await this.loadComponent(component);
   }
 
-  private async loadFactions(): Promise<void> {
-    try {
-      const factions = await this.actorService.getAllActors();
-      this.uiFactions = factions.map(faction => this.actorService.convertToUiFaction(faction));
-      this.updateFactionsUI();
-    } catch (error) {
-      console.error('Failed to load factions:', error);
-      this.uiFactions = [];
-    }
+  // Методы для работы с фракциями
+  public setFactions(factions: UiFaction[]): void {
+    this.uiFactions = factions;
+    this.updateFactionsUI();
   }
 
   private updateFactionsUI(): void {
@@ -158,15 +146,20 @@ export class UIService {
     return [...this.uiFactions];
   }
 
-  public async refreshFactions(): Promise<void> {
-    await this.loadFactions();
+  // Методы для работы с регионами
+  public setRegions(regions: Region[]): void {
+    this.regions = regions;
+    this.updateRegionsUI();
   }
 
-  public async refreshUI(): Promise<void> {
-    // Обновляем фракции
-    await this.loadFactions();
-    
-    // Здесь можно добавить обновление других UI компонентов по мере необходимости
-    console.log('UI refreshed with new data');
+  private updateRegionsUI(): void {
+    const mapContainer = document.querySelector('game-card#app_map');
+    if (mapContainer) {
+      (mapContainer as any).regions = this.regions;
+    }
+  }
+
+  public getRegions(): Region[] {
+    return [...this.regions];
   }
 } 
