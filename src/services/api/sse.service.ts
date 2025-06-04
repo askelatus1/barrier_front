@@ -1,11 +1,17 @@
-import { Observable, BehaviorSubject, ReplaySubject, throwError, timer } from 'rxjs';
+import { Observable, BehaviorSubject, ReplaySubject, throwError, timer, Subject } from 'rxjs';
 import { catchError, take, tap, share, filter } from 'rxjs/operators';
+import { ConfigService } from '../config/config.service';
 
 export interface EventMessage {
   id: string;
   type: string;
   data: any;
   timestamp: number;
+}
+
+export interface SSEMessage {
+  type: string;
+  data: any;
 }
 
 export class SSEService {
@@ -18,6 +24,8 @@ export class SSEService {
   private events$ = new ReplaySubject<EventMessage>(this.BUFFER_SIZE);
   private isConnected$ = new BehaviorSubject<boolean>(false);
   private retryCount = 0;
+  private messageSubject = new Subject<SSEMessage>();
+  private config = ConfigService.getInstance().getConfig();
 
   private constructor() {}
 
@@ -30,59 +38,49 @@ export class SSEService {
 
   public initialize(): void {
     if (this.eventSource) {
-      console.warn('SSEService уже инициализирован');
-      return;
+      this.eventSource.close();
     }
-    console.log('Инициализация SSEService');
+
+    const url = `${this.config.api.baseUrl}/events/stream`;
+    console.log('Connecting to SSE:', url);
+    this.eventSource = new EventSource(url);
+    this.setupEventSourceListeners();
   }
 
-  public connect(): Observable<EventMessage> {
-    if (this.eventSource) {
-      return this.events$.asObservable();
-    }
-
-    this.eventSource = new EventSource('/api/events/stream');
+  private setupEventSourceListeners(): void {
+    if (!this.eventSource) return;
 
     this.eventSource.onopen = () => {
+      console.log('SSE соединение установлено');
       this.isConnected$.next(true);
       this.retryCount = 0;
-      console.log('SSE соединение установлено');
-    };
-
-    this.eventSource.onerror = (error) => {
-      this.isConnected$.next(false);
-      this.handleError(error);
     };
 
     this.eventSource.onmessage = (event) => {
       try {
-        const message: EventMessage = {
-          id: event.lastEventId,
-          type: event.type,
-          data: JSON.parse(event.data),
-          timestamp: Date.now()
-        };
-        this.events$.next(message);
+        const message = JSON.parse(event.data);
+        this.messageSubject.next(message);
       } catch (error) {
-        console.error('Ошибка парсинга сообщения:', error);
+        console.error('Error parsing SSE message:', error);
       }
     };
 
-    return this.events$.asObservable().pipe(
-      share(),
-      catchError(error => {
-        console.error('Ошибка в потоке событий:', error);
-        return throwError(() => error);
-      })
-    );
+    this.eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      this.isConnected$.next(false);
+      // Попытка переподключения через заданное время
+      setTimeout(() => this.initialize(), this.config.sse.reconnectDelayMs);
+    };
+  }
+
+  public connect(): Observable<SSEMessage> {
+    return this.messageSubject.asObservable();
   }
 
   public disconnect(): void {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
-      this.isConnected$.next(false);
-      console.log('SSE соединение закрыто');
     }
   }
 

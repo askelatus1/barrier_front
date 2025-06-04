@@ -3,7 +3,6 @@ import { ApiService } from './api.service';
 import { NetworkService } from '../ui/network.service';
 import { Faction } from '../../models/faction';
 import { Region } from '../../models/region';
-import { ConfigService } from '../config/config.service';
 import { SSEService } from './sse.service';
 import { BehaviorSubject, Observable, map } from 'rxjs';
 

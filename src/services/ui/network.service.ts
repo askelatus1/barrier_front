@@ -63,15 +63,27 @@ export class NetworkService {
         shadow: true
       },
       physics: {
-        enabled: true,
+        enabled: false,
         barnesHut: {
-          gravitationalConstant: -2000,
-          centralGravity: 0.3,
-          springLength: 95,
-          springConstant: 0.04,
-          damping: 0.09,
-          avoidOverlap: 0.1
+          gravitationalConstant: -1000,
+          centralGravity: 0.2,
+          springLength: 150,
+          springConstant: 0.02,
+          damping: 0.2,
+          avoidOverlap: 0.5
+        },
+        stabilization: {
+          enabled: true,
+          iterations: 1000,
+          updateInterval: 50,
+          fit: true
         }
+      },
+      interaction: {
+        dragNodes: true,
+        dragView: true,
+        zoomView: true,
+        hover: true
       }
     };
 
@@ -81,6 +93,19 @@ export class NetworkService {
         { nodes: this.nodes, edges: this.edges },
         options
       );
+
+      // Отключаем физику после первой стабилизации и фиксируем все узлы
+      this.network.once('stabilizationIterationsDone', () => {
+        this.network?.setOptions({ physics: { enabled: false } });
+        // Фиксируем все узлы
+        const positions = this.network?.getPositions();
+        if (positions && this.nodes) {
+          Object.entries(positions).forEach(([id, pos]) => {
+            this.nodes?.update({ id: Number(id), x: pos.x, y: pos.y, fixed: { x: true, y: true } });
+          });
+        }
+      });
+
       console.log('Network initialized successfully');
     } catch (error) {
       console.error('Failed to initialize network:', error);
@@ -169,6 +194,18 @@ export class NetworkService {
     }
 
     try {
+      // Сохраняем текущие позиции узлов
+      const currentNodes = this.nodes.get();
+      const positionMap = new Map<number, {x: number, y: number}>();
+      if (this.network) {
+        currentNodes.forEach(node => {
+          const pos = this.network!.getPositions([node.id]);
+          if (pos[node.id]) {
+            positionMap.set(node.id, pos[node.id]);
+          }
+        });
+      }
+
       const regions = await firstValueFrom(RegionService.getInstance().getRegions());
       
       if (!regions.length) {
@@ -183,14 +220,58 @@ export class NetworkService {
         return;
       }
 
-      // Очищаем старые данные
-      this.clear();
+      // Обновляем только изменившиеся узлы, восстанавливаем позиции
+      nodes.forEach(newNode => {
+        const existingNode = currentNodes.find(n => n.id === newNode.id);
+        // Всегда выставляем позицию и fixed, если она есть
+        if (positionMap.has(newNode.id)) {
+          newNode.x = positionMap.get(newNode.id)!.x;
+          newNode.y = positionMap.get(newNode.id)!.y;
+          newNode.fixed = { x: true, y: true };
+        }
+        if (!existingNode || JSON.stringify(existingNode) !== JSON.stringify(newNode)) {
+          if (existingNode) {
+            this.nodes?.update(newNode);
+          } else {
+            this.nodes?.add(newNode);
+          }
+        }
+      });
 
-      // Добавляем новые узлы
-      this.nodes.add(nodes);
+      // Удаляем неиспользуемые узлы
+      const newIds = new Set(nodes.map(n => n.id));
+      currentNodes.forEach(node => {
+        if (!newIds.has(node.id)) {
+          this.nodes?.remove(node.id);
+        }
+      });
 
-      // Добавляем новые рёбра
-      this.edges.add(edges);
+      // Обновляем рёбра аналогичным образом
+      const currentEdges = this.edges.get();
+      edges.forEach(newEdge => {
+        const existingEdge = currentEdges.find(e => 
+          (e.from === newEdge.from && e.to === newEdge.to) ||
+          (e.from === newEdge.to && e.to === newEdge.from)
+        );
+        if (!existingEdge || JSON.stringify(existingEdge) !== JSON.stringify(newEdge)) {
+          if (existingEdge) {
+            this.edges?.update(newEdge);
+          } else {
+            this.edges?.add(newEdge);
+          }
+        }
+      });
+
+      // Удаляем неиспользуемые рёбра
+      const newEdgeIds = new Set(edges.map(e => `${e.from}-${e.to}`));
+      currentEdges.forEach(edge => {
+        const edgeId = `${edge.from}-${edge.to}`;
+        if (!newEdgeIds.has(edgeId)) {
+          this.edges?.remove(edge.id);
+        }
+      });
+
+      // Не трогаем physics!
 
       console.log('Network display updated successfully');
     } catch (error) {

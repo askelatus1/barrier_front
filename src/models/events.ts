@@ -1,6 +1,5 @@
 import { ActorRuleType, EventType, TerritoryRuleType } from "./constants";
 import { Faction } from "./faction";
-import { Region } from "./region";
 
 export enum ActionType {
     CAPTURE = 'capture',
@@ -27,7 +26,7 @@ export interface Track {
     id: string;
     eventId: string;           // ID события из справочника
     actors: Faction[];         // Участвующие фракции
-    territory: Region;         // Регион, где происходит событие
+    territoryId?: string;        // Регион, где происходит событие
     timeout: number;           // Время на выполнение
     status?: 'resolve' | 'reject'; // Статус выполнения
     scheduler?: NodeJS.Timeout;    // Планировщик для таймаута

@@ -28,6 +28,10 @@ export class RegionService {
   private regions: Region[] = [];
   private static regionIdMap: Map<RegionsType, number> = new Map();
   private sseService = SSEService.getInstance();
+  private static colorCache: Map<string, { background: string; border: string; highlight?: { background: string } }> = new Map();
+  private static titleCache: Map<string, string> = new Map();
+  private static lastUpdateTime: number = 0;
+  private static readonly CACHE_TTL = 5000; // 5 секунд
 
   private constructor(
     private readonly apiService: ApiService
@@ -73,14 +77,18 @@ export class RegionService {
         break;
       case RegionEventType.CREATED:
       case RegionEventType.UPDATED:
-        const updatedRegion = await this.getRegionById(regionId);
-        const index = currentRegions.findIndex(r => r.id === regionId);
-        if (index === -1) {
-          this.regions$.next([...currentRegions, updatedRegion]);
-        } else {
-          const updatedRegions = [...currentRegions];
-          updatedRegions[index] = updatedRegion;
-          this.regions$.next(updatedRegions);
+        try {
+          const updatedRegion = await this.getRegionById(regionId);
+          const index = currentRegions.findIndex(r => r.id === regionId);
+          if (index === -1) {
+            this.regions$.next([...currentRegions, updatedRegion]);
+          } else {
+            const updatedRegions = [...currentRegions];
+            updatedRegions[index] = updatedRegion;
+            this.regions$.next(updatedRegions);
+          }
+        } catch (error) {
+          console.error('Ошибка при обновлении региона:', error);
         }
         break;
     }
@@ -94,24 +102,28 @@ export class RegionService {
     border: string;
     highlight?: { background: string }
   }> {
+    const cacheKey = `${region.id}_${region.status}_${region.faction?.type}`;
+    const cachedColor = this.colorCache.get(cacheKey);
+    
+    if (cachedColor && Date.now() - this.lastUpdateTime < this.CACHE_TTL) {
+      return cachedColor;
+    }
+
     const trackService = TrackService.getInstance();
     const activeTracks = await firstValueFrom(trackService.getActiveTracks());
     
-    // Проверяем, есть ли активные треки для этого региона
-    const activeTrack = activeTracks.find(track => track.territory.id === region.id);
+    const activeTrack = activeTracks.find(track => track.territoryId === region.id);
     
+    let color;
     if (activeTrack) {
       try {
-        // Получаем тип действия из события
         const eventService = EventService.getInstance();
         const event = await eventService.getEventById(activeTrack.eventId);
-        if (event && event.actionType) {
-          // Если есть активный трек, используем цвет действия события
-          const color = ACTION_COLORS[event.actionType];
-          return {
-            background: color,
+        if (event?.actionType) {
+          color = {
+            background: ACTION_COLORS[event.actionType],
             border: '#000000',
-            highlight: { background: color }
+            highlight: { background: ACTION_COLORS[event.actionType] }
           };
         }
       } catch (error) {
@@ -119,22 +131,33 @@ export class RegionService {
       }
     }
 
-    // Если нет активных треков или произошла ошибка, используем цвет статуса региона или фракции
-    return {
-      background: region.faction 
-        ? FACTION_COLORS[region.faction.type]
-        : REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
-      border: '#000000'
-    };
+    if (!color) {
+      color = {
+        background: region.faction 
+          ? FACTION_COLORS[region.faction.type]
+          : REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
+        border: '#000000'
+      };
+    }
+
+    this.colorCache.set(cacheKey, color);
+    return color;
   }
 
   /**
    * Получить описание для региона с учетом активных треков
    */
   private static async getRegionTitle(region: Region): Promise<string> {
+    const cacheKey = `${region.id}_${region.status}_${region.faction?.name}`;
+    const cachedTitle = this.titleCache.get(cacheKey);
+    
+    if (cachedTitle && Date.now() - this.lastUpdateTime < this.CACHE_TTL) {
+      return cachedTitle;
+    }
+
     const trackService = TrackService.getInstance();
     const activeTracks = await firstValueFrom(trackService.getActiveTracks());
-    const activeTrack = activeTracks.find(track => track.territory.id === region.id);
+    const activeTrack = activeTracks.find(track => track.territoryId === region.id);
 
     let title = `${region.title}\nСтатус: ${region.status}\nФракция: ${region.faction?.name || 'Нет'}`;
     
@@ -142,7 +165,7 @@ export class RegionService {
       try {
         const eventService = EventService.getInstance();
         const event = await eventService.getEventById(activeTrack.eventId);
-        const actorsNames = activeTrack.actors.map(actor => actor.name).join(', ');
+        const actorsNames = activeTrack.actors?.map(actor => actor.name).join(', ') || 'Нет участников';
         if (event) {
           title += `\nАктивное действие: ${event.title}\nУчастники: ${actorsNames}`;
         } else {
@@ -150,11 +173,12 @@ export class RegionService {
         }
       } catch (error) {
         console.error('Ошибка при получении события:', error);
-        const actorsNames = activeTrack.actors.map(actor => actor.name).join(', ');
+        const actorsNames = activeTrack.actors?.map(actor => actor.name).join(', ') || 'Нет участников';
         title += `\nАктивное действие: Ошибка\nУчастники: ${actorsNames}`;
       }
     }
 
+    this.titleCache.set(cacheKey, title);
     return title;
   }
 
@@ -194,7 +218,8 @@ export class RegionService {
     nodes: NetworkNode[];
     edges: NetworkEdge[];
   }> {
-    this.clearRegionMap();
+    // Не очищаем карту ID при каждом обновлении
+    // this.clearRegionMap();
 
     const nodes: NetworkNode[] = await Promise.all(regions.map(async (region) => ({
       id: this.getRegionIndex(region.id),
@@ -212,7 +237,6 @@ export class RegionService {
         const fromId = this.getRegionIndex(region.id);
         const toId = this.getRegionIndex(neighbourId);
         
-        // Проверяем, есть ли уже ребро между этими узлами
         const edgeExists = edges.some(
           (edge) => 
             (edge.from === fromId && edge.to === toId) ||
@@ -220,9 +244,8 @@ export class RegionService {
         );
 
         if (!edgeExists) {
-          // Проверяем, есть ли активный трек в этом регионе
           const hasActiveTrack = activeTracks.some(track => 
-            track.territory.id === region.id || track.territory.id === neighbourId
+            track.territoryId === region.id || track.territoryId === neighbourId
           );
 
           edges.push({
@@ -235,6 +258,7 @@ export class RegionService {
       });
     });
 
+    this.lastUpdateTime = Date.now();
     return { nodes, edges };
   }
 
