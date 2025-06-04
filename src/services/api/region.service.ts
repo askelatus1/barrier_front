@@ -112,7 +112,7 @@ export class RegionService {
     const trackService = TrackService.getInstance();
     const activeTracks = await firstValueFrom(trackService.getActiveTracks());
     
-    const activeTrack = activeTracks.find(track => track.territoryId === region.id);
+    const activeTrack = activeTracks.find(track => track.territory?.id === region.id);
     
     let color;
     if (activeTrack) {
@@ -157,7 +157,7 @@ export class RegionService {
 
     const trackService = TrackService.getInstance();
     const activeTracks = await firstValueFrom(trackService.getActiveTracks());
-    const activeTrack = activeTracks.find(track => track.territoryId === region.id);
+    const activeTrack = activeTracks.find(track => track.territory?.id === region.id);
 
     let title = `${region.title}\nСтатус: ${region.status}\nФракция: ${region.faction?.name || 'Нет'}`;
     
@@ -232,31 +232,45 @@ export class RegionService {
     const trackService = TrackService.getInstance();
     const activeTracks = await firstValueFrom(trackService.getActiveTracks());
 
+    // Сначала обычные линии между всеми соседями (без стрелок)
     regions.forEach((region) => {
       region.neighbour.forEach((neighbourId) => {
         const fromId = this.getRegionIndex(region.id);
         const toId = this.getRegionIndex(neighbourId);
-        
+
         const edgeExists = edges.some(
-          (edge) => 
+          (edge) =>
             (edge.from === fromId && edge.to === toId) ||
             (edge.from === toId && edge.to === fromId)
         );
 
         if (!edgeExists) {
-          const hasActiveTrack = activeTracks.some(track => 
-            track.territoryId === region.id || track.territoryId === neighbourId
-          );
-
           edges.push({
-            id: [fromId, toId].sort().join('-'),
+            id: [String(fromId), String(toId)].sort().join('-'),
             from: fromId,
             to: toId,
-            arrows: hasActiveTrack ? 'to' : { to: false },
+            arrows: { to: false },
             color: { color: '#666666' }
           });
         }
       });
+    });
+
+    // Затем для каждого активного трека строим стрелку
+    activeTracks.forEach(track => {
+      const fromRegion = regions.find(r => r.id === track.affectorTerritory?.id);
+      const toRegion = regions.find(r => r.id === track.territory?.id);
+      if (fromRegion && toRegion) {
+        const fromId = this.getRegionIndex(fromRegion.id);
+        const toId = this.getRegionIndex(toRegion.id);
+        // Найти уже существующее ребро и заменить arrows
+        const edge = edges.find(
+          e => (e.from === fromId && e.to === toId) || (e.from === toId && e.to === fromId)
+        );
+        if (edge) {
+          edge.arrows = 'to';
+        }
+      }
     });
 
     this.lastUpdateTime = Date.now();

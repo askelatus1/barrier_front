@@ -1,7 +1,6 @@
 import { Network, Options, Node, Edge, NetworkEvents } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { RegionService } from '../api/region.service';
-import { Region } from '../../models/region';
 import { firstValueFrom } from 'rxjs';
 
 export interface NetworkNode extends Node {
@@ -226,19 +225,10 @@ export class NetworkService {
       // Для каждого узла восстанавливаем позицию, если она была, иначе не фиксируем
       nodes.forEach(newNode => {
         const existingNode = currentNodes.find(n => n.id === newNode.id);
-        if (this.stabilized && positionMap.has(newNode.id)) {
-          newNode.x = positionMap.get(newNode.id)!.x;
-          newNode.y = positionMap.get(newNode.id)!.y;
-          //newNode.fixed = { x: true, y: true };
+        if (!existingNode) {
+          this.nodes?.add(newNode);
         } else {
-          newNode.fixed = false;
-        }
-        if (!existingNode || JSON.stringify(existingNode) !== JSON.stringify(newNode)) {
-          if (existingNode) {
-            this.nodes?.update(newNode);
-          } else {
-            this.nodes?.add(newNode);
-          }
+          this.nodes?.update(newNode);
         }
       });
 
@@ -253,24 +243,18 @@ export class NetworkService {
       // Обновляем рёбра аналогичным образом
       const currentEdges = this.edges.get();
       edges.forEach(newEdge => {
-        const existingEdge = currentEdges.find(e => 
-          (e.from === newEdge.from && e.to === newEdge.to) ||
-          (e.from === newEdge.to && e.to === newEdge.from)
-        );
-        if (!existingEdge || JSON.stringify(existingEdge) !== JSON.stringify(newEdge)) {
-          if (existingEdge) {
-            this.edges?.update(newEdge);
-          } else {
-            this.edges?.add(newEdge);
-          }
+        const existingEdge = currentEdges.find(e => e.id === newEdge.id);
+        if (!existingEdge) {
+          this.edges?.add(newEdge);
+        } else {
+          this.edges?.update(newEdge);
         }
       });
 
       // Удаляем неиспользуемые рёбра
-      const newEdgeIds = new Set(edges.map(e => `${e.from}-${e.to}`));
+      const newEdgeIds = new Set(edges.map(e => e.id));
       currentEdges.forEach(edge => {
-        const edgeId = `${edge.from}-${edge.to}`;
-        if (!newEdgeIds.has(edgeId)) {
+        if (!newEdgeIds.has(edge.id)) {
           this.edges?.remove(edge.id);
         }
       });
