@@ -249,6 +249,7 @@ export class RegionService {
           );
 
           edges.push({
+            id: [fromId, toId].sort().join('-'),
             from: fromId,
             to: toId,
             arrows: hasActiveTrack ? 'to' : { to: false },

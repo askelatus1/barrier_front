@@ -20,6 +20,7 @@ export class NetworkService {
   private network: Network | null = null;
   private nodes: DataSet<NetworkNode> | null = null;
   private edges: DataSet<NetworkEdge> | null = null;
+  private stabilized = false;
 
   private constructor() {}
 
@@ -45,6 +46,7 @@ export class NetworkService {
     // Create DataSets
     this.nodes = new DataSet<NetworkNode>();
     this.edges = new DataSet<NetworkEdge>();
+    this.stabilized = false;
 
     // Create Network
     const options: Options = {
@@ -63,15 +65,13 @@ export class NetworkService {
         shadow: true
       },
       physics: {
-        enabled: false,
-        barnesHut: {
-          gravitationalConstant: -1000,
-          centralGravity: 0.2,
-          springLength: 150,
-          springConstant: 0.02,
-          damping: 0.2,
-          avoidOverlap: 0.5
+        enabled: true,
+        forceAtlas2Based: {
+          springLength: 100
         },
+        minVelocity: 0.75,
+        solver: 'forceAtlas2Based',
+        timestep: 0.93,
         stabilization: {
           enabled: true,
           iterations: 1000,
@@ -95,13 +95,14 @@ export class NetworkService {
       );
 
       // Отключаем физику после первой стабилизации и фиксируем все узлы
-      this.network.once('stabilizationIterationsDone', () => {
+      this.network.once('stabilized', () => {
+        this.stabilized = true;
         this.network?.setOptions({ physics: { enabled: false } });
         // Фиксируем все узлы
         const positions = this.network?.getPositions();
         if (positions && this.nodes) {
           Object.entries(positions).forEach(([id, pos]) => {
-            this.nodes?.update({ id: Number(id), x: pos.x, y: pos.y, fixed: { x: true, y: true } });
+            this.nodes?.update({ id: Number(id), x: pos.x, y: pos.y });
           });
         }
       });
@@ -194,16 +195,18 @@ export class NetworkService {
     }
 
     try {
-      // Сохраняем текущие позиции узлов
+      // Только после первой стабилизации сохраняем и восстанавливаем позиции
+      let positionMap: Map<number, {x: number, y: number}> = new Map();
       const currentNodes = this.nodes.get();
-      const positionMap = new Map<number, {x: number, y: number}>();
-      if (this.network) {
-        currentNodes.forEach(node => {
-          const pos = this.network!.getPositions([node.id]);
-          if (pos[node.id]) {
-            positionMap.set(node.id, pos[node.id]);
-          }
-        });
+      if (this.stabilized) {
+        if (this.network) {
+          currentNodes.forEach(node => {
+            const pos = this.network!.getPositions([node.id]);
+            if (pos[node.id]) {
+              positionMap.set(node.id, pos[node.id]);
+            }
+          });
+        }
       }
 
       const regions = await firstValueFrom(RegionService.getInstance().getRegions());
@@ -220,14 +223,15 @@ export class NetworkService {
         return;
       }
 
-      // Обновляем только изменившиеся узлы, восстанавливаем позиции
+      // Для каждого узла восстанавливаем позицию, если она была, иначе не фиксируем
       nodes.forEach(newNode => {
         const existingNode = currentNodes.find(n => n.id === newNode.id);
-        // Всегда выставляем позицию и fixed, если она есть
-        if (positionMap.has(newNode.id)) {
+        if (this.stabilized && positionMap.has(newNode.id)) {
           newNode.x = positionMap.get(newNode.id)!.x;
           newNode.y = positionMap.get(newNode.id)!.y;
-          newNode.fixed = { x: true, y: true };
+          //newNode.fixed = { x: true, y: true };
+        } else {
+          newNode.fixed = false;
         }
         if (!existingNode || JSON.stringify(existingNode) !== JSON.stringify(newNode)) {
           if (existingNode) {

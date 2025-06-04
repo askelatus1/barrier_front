@@ -135,16 +135,7 @@ export class UIService {
     if (!this.isNetworkInitialized) return;
 
     try {
-      const { nodes, edges } = await RegionService.convertToNetworkStructure(this.regions);
-      const networkService = NetworkService.getInstance();
-      
-      // Очищаем старые данные
-      networkService.clear();
-      
-      // Добавляем новые узлы и рёбра
-      networkService.setNodes(nodes);
-      networkService.setEdges(edges);
-      
+      await NetworkService.getInstance().updateNetworkDisplay();
       console.log('Network display updated successfully');
     } catch (error) {
       console.error('Ошибка при обновлении отображения сети:', error);
