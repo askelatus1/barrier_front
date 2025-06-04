@@ -90,7 +90,7 @@ export class TrackService {
   public getTracksByRegion(regionId: string): Observable<Track[]> {
     return this.tracks$.pipe(
       map(tracksMap => Array.from(tracksMap.values())
-        .filter(track => track.territory.id === regionId))
+        .filter(track => track.territoryId === regionId))
     );
   }
 
