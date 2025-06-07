@@ -2,6 +2,7 @@ import { BarrierEvent, Track } from '../../models/events';
 import { ApiService } from './api.service';
 import { SSEService } from './sse.service';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { SSEEventType } from '../../models/constants';
 
 export class EventService {
   private static instance: EventService | null = null;
@@ -31,7 +32,7 @@ export class EventService {
   private initializeEventStream(): void {
     this.sseService.connect().subscribe({
       next: (message) => {
-        if (message.type === 'event_updated' || message.type === 'event_created') {
+        if (message.type === SSEEventType.EVENT_UPDATED || message.type === SSEEventType.EVENT_CREATED) {
           this.handleEventUpdate(message.data);
         }
       },

@@ -247,6 +247,7 @@ export class NetworkService {
         if (!existingEdge) {
           this.edges?.add(newEdge);
         } else {
+          // Сохраняем все свойства нового ребра
           this.edges?.update(newEdge);
         }
       });

@@ -5,12 +5,7 @@ import { Faction } from '../../models/faction';
 import { Region } from '../../models/region';
 import { SSEService } from './sse.service';
 import { BehaviorSubject, Observable, map } from 'rxjs';
-
-export enum TrackEventType {
-  CREATED = 'track_created',
-  UPDATED = 'track_updated',
-  STOPPED = 'track_stopped'
-}
+import { SSEEventType } from '../../models/constants';
 
 export class TrackService {
   private static instance: TrackService | null = null;
@@ -40,10 +35,9 @@ export class TrackService {
   private initializeEventStream(): void {
     this.sseService.connect().subscribe({
       next: (message) => {
-        if (message.type === TrackEventType.CREATED || 
-            message.type === TrackEventType.UPDATED || 
-            message.type === TrackEventType.STOPPED) {
-          // При любом событии просто обновляем все треки
+        if (message.type === SSEEventType.TRACK_CREATED || 
+            message.type === SSEEventType.TRACK_UPDATED || 
+            message.type === SSEEventType.TRACK_STOPPED) {
           this.refreshAllTracks();
         }
       },

@@ -1,10 +1,11 @@
 import { Observable, BehaviorSubject, ReplaySubject, throwError, timer, Subject } from 'rxjs';
 import { catchError, take, tap, share, filter } from 'rxjs/operators';
 import { ConfigService } from '../config/config.service';
+import { SSEEventType } from '../../models/constants';
 
 export interface EventMessage {
   id: string;
-  type: string;
+  type: SSEEventType;
   data: any;
   timestamp: number;
 }
@@ -104,7 +105,7 @@ export class SSEService {
     }
   }
 
-  public filterEventsByType(type: string): Observable<EventMessage> {
+  public filterEventsByType(type: SSEEventType): Observable<EventMessage> {
     return this.events$.asObservable().pipe(
       filter(event => event.type === type)
     );

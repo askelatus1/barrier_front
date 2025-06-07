@@ -253,7 +253,7 @@ export class RegionService {
 
     const nodes: NetworkNode[] = await Promise.all(regions.map(async (region) => ({
       id: this.getRegionIndex(region.id),
-      label: region.title,
+      label: `${region.title}${region.faction?.name ? `\n(${region.faction?.name})` : ''}`,
       title: await this.getRegionTitle(region),
       color: await this.getRegionColor(region)
     })));
@@ -287,12 +287,17 @@ export class RegionService {
     });
 
     // Затем для каждого активного трека строим стрелку
-    activeTracks.forEach(track => {
+    await Promise.all(activeTracks.map(async track => {
       const fromRegion = regions.find(r => r.id === track.affectorTerritory?.id);
       const toRegion = regions.find(r => r.id === track.territory?.id);
       if (fromRegion && toRegion) {
         const fromId = this.getRegionIndex(fromRegion.id);
         const toId = this.getRegionIndex(toRegion.id);
+        
+        // Получаем тип действия из события
+        const eventService = EventService.getInstance();
+        const event = await eventService.getEventById(track.eventId);
+        const actionColor = ACTION_COLORS[event.actionType];
         
         // Найти существующее ребро
         const edge = edges.find(
@@ -304,6 +309,7 @@ export class RegionService {
           if (edge.from === fromId && edge.to === toId) {
             // Ребро уже в правильном направлении
             edge.arrows = { to: true };
+            edge.color = { color: actionColor };
           } else {
             // Ребро в обратном направлении, нужно пересоздать
             const index = edges.indexOf(edge);
@@ -313,12 +319,12 @@ export class RegionService {
               from: fromId,
               to: toId,
               arrows: { to: true },
-              color: { color: '#666666' }
+              color: { color: actionColor }
             });
           }
         }
       }
-    });
+    }));
 
     this.lastUpdateTime = Date.now();
     return { nodes, edges };

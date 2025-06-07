@@ -53,3 +53,15 @@ export const TIMEOUTS = {
     DEFAULT: 1000,
     EVENT: 1000
 } as const;
+
+export enum SSEEventType {
+    EVENT_CREATED = 'event_created',
+    EVENT_UPDATED = 'event_updated',
+    EVENT_DELETED = 'event_deleted',
+    TRACK_CREATED = 'track_created',
+    TRACK_UPDATED = 'track_updated',
+    TRACK_STOPPED = 'track_stopped',
+    REGION_CREATED = 'region_created',
+    REGION_UPDATED = 'region_updated',
+    REGION_DELETED = 'region_deleted'
+}
