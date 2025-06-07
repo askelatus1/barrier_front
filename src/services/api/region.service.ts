@@ -1,19 +1,15 @@
 import { Region, RegionsType } from '../../models/region';
 import { ApiService } from './api.service';
 import { NetworkNode, NetworkEdge } from '../ui/network.service';
-import { ActorType, RegionStatus } from '../../models/constants';
+import { ActorType } from '../../models/constants';
 import { TrackService } from './track.service';
-import { ACTION_COLORS, REGION_STATUS_COLORS } from '../../models/track.constants';
+import { FACTION_COLORS, REGION_STATUS_COLORS, ACTION_COLORS } from '../../config/colors';
 import { EventService } from './event.service';
 import { SSEService } from './sse.service';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { ActorService } from './actor.service';
+import { Faction } from '../../models/faction';
 
-const FACTION_COLORS = {
-  [ActorType.MILITARY]: '#2E7D32',   // Темно-зеленый
-  [ActorType.CIVILIAN]: '#1976D2',   // Синий
-  [ActorType.TERRORIST]: '#D32F2F',  // Красный
-  NEUTRAL: '#757575'                 // Серый
-} as const;
 
 export enum RegionEventType {
   CREATED = 'region_created',
@@ -25,7 +21,6 @@ export class RegionService {
   private static instance: RegionService | null = null;
   private regions$ = new BehaviorSubject<Region[]>([]);
   private readonly endpoint = '/regions';
-  private regions: Region[] = [];
   private static regionIdMap: Map<RegionsType, number> = new Map();
   private sseService = SSEService.getInstance();
   private static colorCache: Map<string, { background: string; border: string; highlight?: { background: string } }> = new Map();
@@ -109,20 +104,40 @@ export class RegionService {
       return cachedColor;
     }
 
-    const trackService = TrackService.getInstance();
-    const activeTracks = await firstValueFrom(trackService.getActiveTracks());
+    // Определяем цвет обводки на основе приоритета фракций
+    let borderColor: string = FACTION_COLORS.NEUTRAL;
     
-    const activeTrack = activeTracks.find(track => track.territory?.id === region.id);
+    // Проверяем военные фракции (высший приоритет)
+    if (region.faction?.type === ActorType.MILITARY) {
+      borderColor = FACTION_COLORS[ActorType.MILITARY];
+    }
+    // Проверяем террористов (средний приоритет)
+    else if (await this.findFactionByBaseRegion(region.id, ActorType.TERRORIST)) {
+      borderColor = FACTION_COLORS[ActorType.TERRORIST];
+    }
+    // Проверяем гражданских (низший приоритет)
+    else if (await this.findFactionByBaseRegion(region.id, ActorType.CIVILIAN)) {
+      borderColor = FACTION_COLORS[ActorType.CIVILIAN];
+    }
+
+    const trackService = TrackService.getInstance();
+    const allTracks = await firstValueFrom(trackService.getTracks());
+    
+    // Получаем все треки для региона
+    const regionTracks = Array.from(allTracks.values())
+      .filter(track => track.territory?.id === region.id);
     
     let color;
-    if (activeTrack) {
+    if (regionTracks.length > 0) {
       try {
         const eventService = EventService.getInstance();
-        const event = await eventService.getEventById(activeTrack.eventId);
+        // Берем последний трек для региона
+        const lastTrack = regionTracks[regionTracks.length - 1];
+        const event = await eventService.getEventById(lastTrack.eventId);
         if (event?.actionType) {
           color = {
             background: ACTION_COLORS[event.actionType],
-            border: '#000000',
+            border: borderColor,
             highlight: { background: ACTION_COLORS[event.actionType] }
           };
         }
@@ -133,15 +148,30 @@ export class RegionService {
 
     if (!color) {
       color = {
-        background: region.faction 
-          ? FACTION_COLORS[region.faction.type]
-          : REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
-        border: '#000000'
+        background: REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
+        border: borderColor
       };
     }
 
     this.colorCache.set(cacheKey, color);
     return color;
+  }
+
+  /**
+   * Находит фракцию по baseRegion и типу
+   */
+  private static async findFactionByBaseRegion(regionId: string, factionType: ActorType): Promise<Faction | null> {
+    try {
+      const actorService = ActorService.getInstance();
+      const factions = await actorService.getAllActors();
+      return factions.find(faction => 
+        faction.type === factionType && 
+        faction.baseRegion === regionId
+      ) || null;
+    } catch (error) {
+      console.error('Ошибка при поиске фракции:', error);
+      return null;
+    }
   }
 
   /**
@@ -263,12 +293,29 @@ export class RegionService {
       if (fromRegion && toRegion) {
         const fromId = this.getRegionIndex(fromRegion.id);
         const toId = this.getRegionIndex(toRegion.id);
-        // Найти уже существующее ребро и заменить arrows
+        
+        // Найти существующее ребро
         const edge = edges.find(
           e => (e.from === fromId && e.to === toId) || (e.from === toId && e.to === fromId)
         );
+        
         if (edge) {
-          edge.arrows = 'to';
+          // Если ребро существует, проверяем его направление
+          if (edge.from === fromId && edge.to === toId) {
+            // Ребро уже в правильном направлении
+            edge.arrows = { to: true };
+          } else {
+            // Ребро в обратном направлении, нужно пересоздать
+            const index = edges.indexOf(edge);
+            edges.splice(index, 1);
+            edges.push({
+              id: [String(fromId), String(toId)].sort().join('-'),
+              from: fromId,
+              to: toId,
+              arrows: { to: true },
+              color: { color: '#666666' }
+            });
+          }
         }
       }
     });

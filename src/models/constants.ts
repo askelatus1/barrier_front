@@ -52,4 +52,4 @@ export enum NotifyType {
 export const TIMEOUTS = {
     DEFAULT: 1000,
     EVENT: 1000
-} as const; 
+} as const;
