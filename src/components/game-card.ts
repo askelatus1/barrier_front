@@ -1,4 +1,4 @@
-import { UiFaction } from '../models/ui.types';
+import { DisplayedFaction } from '../models/faction';
 import { ActorType } from '../models/constants';
 import gameCardStyles from '../styles/components/game-card.css?inline';
 
@@ -8,7 +8,7 @@ interface GameCardAttributes {
 }
 
 export class GameCard extends HTMLElement {
-  private _factions: UiFaction[] = [];
+  private _factions: DisplayedFaction[] = [];
 
   static get observedAttributes() {
     return ['bg', 'border'];
@@ -20,11 +20,11 @@ export class GameCard extends HTMLElement {
   }
 
   // Геттер и сеттер для фракций
-  get factions(): UiFaction[] {
+  get factions(): DisplayedFaction[] {
     return this._factions;
   }
 
-  set factions(value: UiFaction[]) {
+  set factions(value: DisplayedFaction[]) {
     this._factions = value;
     this.render();
   }
@@ -52,7 +52,7 @@ export class GameCard extends HTMLElement {
     if (border) this.style.setProperty('--border', border);
   }
 
-  private getFactionLogo(faction: UiFaction): string {
+  private getFactionLogo(faction: DisplayedFaction): string {
     switch (faction.type) {
       case ActorType.CIVILIAN:
         return '/factions/peaceful.svg';

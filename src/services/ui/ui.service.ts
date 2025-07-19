@@ -1,20 +1,22 @@
 import { UIComponent, uiComponents } from '../../config/ui.config';
 import { COLORS } from '../../styles/theme';
-import { UiFaction } from '../../models/ui.types';
+import { DisplayedFaction } from '../../models/faction';
 import { ActorService } from '../api/actor.service';
 import { RegionService } from '../api/region.service';
 import { EventService } from '../api/event.service';
 import { TrackService } from '../api/track.service';
 import { Region } from '../../models/region';
-import { BarrierEvent } from '../../models/events';
 import { combineLatest } from 'rxjs';
 import { NetworkService } from './network.service';
+import { BarrierEvent, Track } from '../../models/events';
 
 export class UIService {
   private static instance: UIService;
   private componentModules = import.meta.glob('/src/components/*.ts', { eager: true });
   private components: UIComponent[] = uiComponents;
-  private uiFactions: UiFaction[] = [];
+  private uiFactions: DisplayedFaction[] = [];
+  private events: BarrierEvent[] = [];
+  private tracks: Track[] = [];
   private regions: Region[] = [];
   private isNetworkInitialized = false;
 
@@ -118,11 +120,19 @@ export class UIService {
     combineLatest([
       this.regionService.getRegions(),
       this.eventService.getEvents(),
-      this.trackService.getTracks()
-    ]).subscribe(async ([regions]) => {
+      this.trackService.getTracks(),
+      this.actorService.getDisplayedActors()
+    ]).subscribe(async ([regions, events, tracks, factions]) => {
       // Обновляем регионы
       this.regions = regions;
+      this.events = events;
+      this.tracks = Array.from(tracks.values());
+      this.uiFactions = Array.from(factions.values());
+
+      console.log('uiFactions:', this.uiFactions);
+
       this.updateRegionsUI();
+      this.updateFactionsUI();
 
       // Обновляем отображение сети только если она инициализирована
       if (this.isNetworkInitialized) {
@@ -234,12 +244,12 @@ export class UIService {
   }
 
   // Методы для работы с фракциями
-  public setFactions(factions: UiFaction[]): void {
+  public setFactions(factions: DisplayedFaction[]): void {
     this.uiFactions = factions;
     this.updateFactionsUI();
   }
 
-  public getFactions(): UiFaction[] {
+  public getFactions(): DisplayedFaction[] {
     return [...this.uiFactions];
   }
 

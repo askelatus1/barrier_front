@@ -16,7 +16,6 @@ class App {
   private apiService: ApiService;
   private configService = ConfigService.getInstance();
   private networkService = NetworkService.getInstance();
-  private sseService = SSEService.getInstance();
 
   private constructor() {
     this.apiService = new ApiService();
@@ -31,20 +30,37 @@ class App {
 
   private async initializeServices(): Promise<void> {
     try {
-      // Инициализация API сервисов
-      RegionService.init(this.apiService);
-      ActorService.init(this.apiService);
-      EventService.init(this.apiService);
-      ZoneService.init(this.apiService);
+      // Инициализация базовых сервисов
+      const configService = ConfigService.getInstance();
+      
+      // Инициализация сервисов в правильном порядке
+      const sseService = SSEService.getInstance();
+      sseService.initialize();
+      
+      // Сначала инициализируем все базовые сервисы
       TrackService.init(this.apiService);
-      this.sseService.initialize();
+      EventService.init(this.apiService);
+      RegionService.init(this.apiService);
+      ZoneService.init(this.apiService);
 
-      // Инициализация UI с пустыми данными
+      // Затем инициализируем сервисы с зависимостями
+      ActorService.init(
+        this.apiService,
+        TrackService.getInstance(),
+        EventService.getInstance(),
+        sseService
+      );
+
+      // Инициализация UI сервисов
       UIService.init(
         ActorService.getInstance(),
         RegionService.getInstance(),
         EventService.getInstance()
       );
+
+      const networkService = NetworkService.getInstance();
+      
+      console.log('Все сервисы успешно инициализированы');
 
       // Инициализация UI компонентов
       await UIService.getInstance().initialize();
@@ -67,9 +83,9 @@ class App {
         throw new Error('No regions loaded');
       }
 
-      // Преобразование и обновление UI данными
-      const uiFactions = actors.map(actor => ActorService.getInstance().convertToUiFaction(actor));
-      UIService.getInstance().setFactions(uiFactions);
+      // Получаем отображаемые фракции через Observable
+      const displayedFactions = await firstValueFrom(ActorService.getInstance().getDisplayedActors());
+      UIService.getInstance().setFactions(Array.from(displayedFactions.values()));
       UIService.getInstance().setRegions(regions);
       console.log('UI updated with data');
 
@@ -80,66 +96,74 @@ class App {
       // Обновляем отображение сети
       await this.networkService.updateNetworkDisplay();
       console.log('Network display updated');
+
     } catch (error) {
       console.error('Failed to initialize services:', error);
       throw error;
     }
   }
 
-  private async waitForElementInShadow(shadowRoot: ShadowRoot, selector: string, timeout = 3000): Promise<HTMLElement> {
+  private async waitForElementInShadow(shadowRoot: ShadowRoot, selector: string): Promise<Element> {
     return new Promise((resolve, reject) => {
-      const el = shadowRoot.querySelector(selector);
-      if (el) {
-        console.log(`Element ${selector} found immediately`);
-        return resolve(el as HTMLElement);
+      const element = shadowRoot.querySelector(selector);
+      if (element) {
+        resolve(element);
+        return;
       }
 
-      console.log(`Waiting for element ${selector}...`);
-      const observer = new MutationObserver(() => {
-        const el = shadowRoot.querySelector(selector);
-        if (el) {
-          console.log(`Element ${selector} found after mutation`);
-          observer.disconnect();
-          resolve(el as HTMLElement);
+      const observer = new MutationObserver((mutations, obs) => {
+        const element = shadowRoot.querySelector(selector);
+        if (element) {
+          obs.disconnect();
+          resolve(element);
         }
       });
 
-      observer.observe(shadowRoot, { childList: true, subtree: true });
+      observer.observe(shadowRoot, {
+        childList: true,
+        subtree: true
+      });
 
+      // Таймаут на случай, если элемент не появится
       setTimeout(() => {
         observer.disconnect();
-        reject(new Error(`Timeout: ${selector} not found in shadowRoot`));
-      }, timeout);
+        reject(new Error(`Element ${selector} not found in shadow root`));
+      }, 5000);
     });
   }
 
   private async initializeNetwork(): Promise<void> {
-    console.log('Starting network initialization...');
-    const mapContainer = document.querySelector('game-card#app_map');
-    if (!mapContainer) {
-      throw new Error('mapContainer component not found');
-    }
-    console.log('Map container found');
-
-    // Ждем инициализации Shadow DOM
-    await new Promise(resolve => setTimeout(resolve, 100));
-    console.log('Shadow DOM initialization delay completed');
-    
-    // Ждем появления div-контейнера для карты во вложенном shadowRoot
-    const cardShadow = mapContainer.shadowRoot;
-    if (!cardShadow) throw new Error('No shadowRoot in game-card#app_map');
-    console.log('Shadow root found');
-    
     try {
-      const mapCanvas = await this.waitForElementInShadow(cardShadow, '#app_map_canvas');
-      console.log('Map canvas container found:', mapCanvas);
+      console.log('Starting network initialization...');
+      const mapContainer = document.querySelector('game-card#app_map');
+      if (!mapContainer) {
+        throw new Error('mapContainer component not found');
+      }
+      console.log('Map container found');
+
+      // Ждем инициализации Shadow DOM
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('Shadow DOM initialization delay completed');
       
-      // Инициализация сети
-      this.networkService.initialize(mapCanvas as HTMLElement);
-      console.log('Network service initialized');
-    } catch (e) {
-      console.error('Failed to initialize network:', e);
-      throw e;
+      // Ждем появления div-контейнера для карты во вложенном shadowRoot
+      const cardShadow = mapContainer.shadowRoot;
+      if (!cardShadow) throw new Error('No shadowRoot in game-card#app_map');
+      console.log('Shadow root found');
+      
+      try {
+        const mapCanvas = await this.waitForElementInShadow(cardShadow, '#app_map_canvas');
+        console.log('Map canvas container found:', mapCanvas);
+        
+        // Инициализация сети
+        this.networkService.initialize(mapCanvas as HTMLElement);
+        console.log('Network service initialized');
+      } catch (e) {
+        console.error('Failed to initialize network:', e);
+        throw e;
+      }
+    } catch (error) {
+      console.error('Failed to initialize network:', error);
+      throw error;
     }
   }
 
