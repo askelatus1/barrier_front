@@ -9,6 +9,7 @@ export class EventService {
   private readonly endpoint = '/events';
   private events$ = new BehaviorSubject<BarrierEvent[]>([]);
   private sseService = SSEService.getInstance();
+  private eventCache = new Map<string, any>(); // Универсальный кэш для разных методов
 
   private constructor(
     private readonly apiService: ApiService
@@ -76,14 +77,26 @@ export class EventService {
    * Получить событие по ID
    */
   public async getEventById(id: string): Promise<BarrierEvent> {
-    return this.apiService.get<BarrierEvent>(`${this.endpoint}/${id}`);
+    const cacheKey = `getEventById:${id}`;
+    if (this.eventCache.has(cacheKey)) {
+      return this.eventCache.get(cacheKey)!;
+    }
+    const event = await this.apiService.get<BarrierEvent>(`${this.endpoint}/${id}`);
+    this.eventCache.set(cacheKey, event);
+    return event;
   }
 
   /**
    * Получить треки события
    */
   public async getEventTracks(eventId: string): Promise<Track[]> {
-    return this.apiService.get<Track[]>(`${this.endpoint}/${eventId}/tracks`);
+    const cacheKey = `getEventTracks:${eventId}`;
+    if (this.eventCache.has(cacheKey)) {
+      return this.eventCache.get(cacheKey)!;
+    }
+    const tracks = await this.apiService.get<Track[]>(`${this.endpoint}/${eventId}/tracks`);
+    this.eventCache.set(cacheKey, tracks);
+    return tracks;
   }
 
   /**
@@ -97,41 +110,55 @@ export class EventService {
    * Обновить существующее событие
    */
   public async updateEvent(id: string, event: Partial<BarrierEvent>): Promise<BarrierEvent> {
-    return this.apiService.put<BarrierEvent>(`${this.endpoint}/${id}`, event);
+    const updated = await this.apiService.put<BarrierEvent>(`${this.endpoint}/${id}`, event);
+    this.eventCache.set(`getEventById:${id}`, updated); // Обновляем кэш события
+    // Треки события могли измениться — сбрасываем кэш треков
+    this.eventCache.delete(`getEventTracks:${id}`);
+    return updated;
   }
 
   /**
    * Частично обновить существующее событие
    */
   public async patchEvent(id: string, event: Partial<BarrierEvent>): Promise<BarrierEvent> {
-    return this.apiService.patch<BarrierEvent>(`${this.endpoint}/${id}`, event);
+    const patched = await this.apiService.patch<BarrierEvent>(`${this.endpoint}/${id}`, event);
+    this.eventCache.set(`getEventById:${id}`, patched); // Обновляем кэш события
+    this.eventCache.delete(`getEventTracks:${id}`);
+    return patched;
   }
 
   /**
    * Удалить событие
    */
   public async deleteEvent(id: string): Promise<void> {
-    return this.apiService.delete<void>(`${this.endpoint}/${id}`);
+    await this.apiService.delete<void>(`${this.endpoint}/${id}`);
+    this.eventCache.delete(`getEventById:${id}`);
+    this.eventCache.delete(`getEventTracks:${id}`);
   }
 
   /**
    * Создать трек для события
    */
   public async createTrack(eventId: string, track: Omit<Track, 'id'>): Promise<Track> {
-    return this.apiService.post<Track>(`${this.endpoint}/${eventId}/tracks`, track);
+    const created = await this.apiService.post<Track>(`${this.endpoint}/${eventId}/tracks`, track);
+    this.eventCache.delete(`getEventTracks:${eventId}`); // Сброс кэша треков
+    return created;
   }
 
   /**
    * Обновить трек события
    */
   public async updateTrack(eventId: string, trackId: string, track: Partial<Track>): Promise<Track> {
-    return this.apiService.put<Track>(`${this.endpoint}/${eventId}/tracks/${trackId}`, track);
+    const updated = await this.apiService.put<Track>(`${this.endpoint}/${eventId}/tracks/${trackId}`, track);
+    this.eventCache.delete(`getEventTracks:${eventId}`); // Сброс кэша треков
+    return updated;
   }
 
   /**
    * Удалить трек события
    */
   public async deleteTrack(eventId: string, trackId: string): Promise<void> {
-    return this.apiService.delete<void>(`${this.endpoint}/${eventId}/tracks/${trackId}`);
+    await this.apiService.delete<void>(`${this.endpoint}/${eventId}/tracks/${trackId}`);
+    this.eventCache.delete(`getEventTracks:${eventId}`); // Сброс кэша треков
   }
 } 

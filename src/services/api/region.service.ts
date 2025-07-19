@@ -120,38 +120,11 @@ export class RegionService {
       borderColor = FACTION_COLORS[ActorType.CIVILIAN];
     }
 
-    const trackService = TrackService.getInstance();
-    const allTracks = await firstValueFrom(trackService.getTracks());
-    
-    // Получаем все треки для региона
-    const regionTracks = Array.from(allTracks.values())
-      .filter(track => track.territory?.id === region.id);
-    
-    let color;
-    if (regionTracks.length > 0) {
-      try {
-        const eventService = EventService.getInstance();
-        // Берем последний трек для региона
-        const lastTrack = regionTracks[regionTracks.length - 1];
-        const event = await eventService.getEventById(lastTrack.eventId);
-        if (event?.actionType) {
-          color = {
-            background: ACTION_COLORS[event.actionType],
-            border: borderColor,
-            highlight: { background: ACTION_COLORS[event.actionType] }
-          };
-        }
-      } catch (error) {
-        console.error('Ошибка при получении события:', error);
-      }
-    }
-
-    if (!color) {
-      color = {
-        background: REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
-        border: borderColor
-      };
-    }
+    // Цвет только по статусу региона
+    const color = {
+      background: REGION_STATUS_COLORS[region.status] || FACTION_COLORS.NEUTRAL,
+      border: borderColor
+    };
 
     this.colorCache.set(cacheKey, color);
     return color;
